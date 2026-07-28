@@ -1,0 +1,11 @@
+
+import './Home.module.css'
+const Home: React.FC = () => {
+  return (
+    <div>
+    </div>
+  );
+};
+
+export default Home;
+    
