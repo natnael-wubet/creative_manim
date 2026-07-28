@@ -9,11 +9,9 @@ while 1:
             print("name cannot be empty")
 
     code = """
-import { atom } from 'recoil';
+import { atom } from 'jotai'
+import { atomWithStorage } from 'jotai/utils'
 
-import { recoilPersist } from 'recoil-persist';
-
-const { persistAtom } = recoilPersist();
 """
     os.system("clear")
     os.system("echo \"%s\">> %s/%s.ts" % (code, defpath, name))

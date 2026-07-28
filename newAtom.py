@@ -19,12 +19,7 @@ while 1:
     if stateType == "":
         stateType = defstateType
     code = """
-export const %sState = atom<%s>({
-	key: '%sState',
-	default: null,
-
-	effects_UNSTABLE: [persistAtom],
-});
+export const %sAtom = atomWithStorage<%s>('%sState',null);
 """ % (stateName, stateType, stateName)
     os.system("clear")
     os.system("echo \"%s\">> %s/%s.ts" % (code, defpath, name))
