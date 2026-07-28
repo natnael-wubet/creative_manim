@@ -8,6 +8,13 @@ import { createTheme, MantineProvider } from '@mantine/core';
 
 import { Routes, Route } from "react-router";
 import OuterShell from "./components/OuterShell";
+import {
+	RecoilRoot,
+	atom,
+	selector,
+	useRecoilState,
+	useRecoilValue,
+} from 'recoil';
 const theme = createTheme({
 	/** Put your mantine theme override here */
 });
@@ -23,15 +30,18 @@ function App() {
 
 	return (
 
-		<MantineProvider theme={theme}>
-			<main >
-				<Routes>
-					<Route path="/" element={<OuterShell />} />
-				</Routes>
+		<RecoilRoot>
+			<MantineProvider theme={theme}>
+				<main >
+					<Routes>
+						<Route path="/" element={<OuterShell />} />
+					</Routes>
 
-			</main>
+				</main>
 
-		</MantineProvider>
+			</MantineProvider>
+
+		</RecoilRoot>
 	);
 }
 
