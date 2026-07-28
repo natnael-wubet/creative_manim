@@ -8,21 +8,23 @@ import { createTheme, MantineProvider } from '@mantine/core';
 
 import { Routes, Route } from "react-router";
 import OuterShell from "./components/OuterShell";
-import { isEditingState } from "./atoms/projects";
+import { useAtom } from "jotai";
+
 import Home from "./components/Home";
 import Editor from "./components/Editor";
+import { isEditingAtom } from "./atoms/projects";
 const theme = createTheme({
 	/** Put your mantine theme override here */
 });
 
 function App() {
-
+	const [isEditing,setIsEditing] = useAtom(isEditingAtom);
 	return (
 			<MantineProvider theme={theme}>
 				<main >
 					<Routes>
 						<Route path="/" element={<OuterShell />}>
-							<Route index element={1 ? <Home /> : <Editor />} />
+							<Route index element={isEditing ? <Home /> : <Editor />} />
 						</Route>
 					</Routes>
 
