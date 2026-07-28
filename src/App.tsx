@@ -6,6 +6,8 @@ import '@mantine/core/styles.css';
 
 import { createTheme, MantineProvider } from '@mantine/core';
 
+import { Routes, Route } from "react-router";
+import OuterShell from "./components/OuterShell";
 const theme = createTheme({
 	/** Put your mantine theme override here */
 });
@@ -23,6 +25,10 @@ function App() {
 
 		<MantineProvider theme={theme}>
 			<main >
+				<Routes>
+					<Route path="/" element={<OuterShell />} />
+				</Routes>
+
 			</main>
 
 		</MantineProvider>
