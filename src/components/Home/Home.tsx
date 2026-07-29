@@ -1,11 +1,12 @@
 
 import './Home.module.css'
 const Home: React.FC = () => {
-  return (
-    <div>
-    </div>
-  );
+	return (
+		<div>
+			home
+		</div>
+	);
 };
 
 export default Home;
-    
+

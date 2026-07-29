@@ -1,11 +1,12 @@
 
 import './Editor.module.css'
 const Editor: React.FC = () => {
-  return (
-    <div>
-    </div>
-  );
+	return (
+		<div>
+			editor
+		</div>
+	);
 };
 
 export default Editor;
-    
+
