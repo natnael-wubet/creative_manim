@@ -1,0 +1,65 @@
+/* ── Accordion Root ── */
+.accordionRoot {
+  --accordion-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── Accordion Item ── */
+.accordionItem {
+  border: none;
+  border-radius: var(--accordion-radius);
+  background: transparent;
+  overflow: hidden;
+  transition: background 200ms ease;
+}
+
+.accordionItem[data-active="true"] {
+  background: hsl(var(--sidebar-accent) / 0.3);
+}
+
+/* ── Accordion Control ── */
+.accordionControl {
+  border-radius: var(--accordion-radius);
+  padding: 6px 8px;
+  background: transparent;
+  transition: background 180ms ease;
+  cursor: pointer;
+}
+
+.accordionControl:hover {
+  background: hsl(var(--sidebar-accent) / 0.5);
+}
+
+.accordionItem[data-active="true"] .accordionControl {
+  background: hsl(var(--sidebar-accent) / 0.35);
+  border-radius: var(--accordion-radius) var(--accordion-radius) 0 0;
+}
+
+/* ── Accordion Panel ── */
+.accordionPanel {
+  padding: 2px 0 8px 0;
+  border-left: 2px solid hsl(var(--sidebar-accent) / 0.3);
+  margin-left: 20px;
+  margin-bottom: 2px;
+  animation: panelSlideDown 200ms ease-out;
+}
+
+/* ── Accordion Chevron ── */
+.accordionChevron {
+  display: none;
+}
+
+@keyframes panelSlideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+    transform: translateY(0);
+  }
+}

@@ -2,7 +2,17 @@
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 
+export interface RecentProject {
+  id: string
+  name: string
+  path: string
+  lastOpened: string // ISO date
+}
 
+export const isEditingAtom = atomWithStorage<boolean>('isEditingState', false)
 
-export const isEditingAtom = atomWithStorage<boolean>('isEditingState',null);
+export const recentProjectsAtom = atomWithStorage<RecentProject[]>('recentProjects', [])
+
+export const currentProjectAtom = atom<RecentProject | null>(null)
+
 
