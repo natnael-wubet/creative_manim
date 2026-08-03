@@ -1,3 +1,42 @@
+/* ── Tailwind v4 imports ── */
+@import "tailwindcss";
+
+/* ── Custom dark variant: so `dark:` classes respond to .dark on <html> ── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Define your custom theme tokens (can be used as Tailwind utilities) ── */
+@theme {
+  --color-background: var(--color-background-raw);
+  --color-foreground: var(--color-foreground-raw);
+  --color-muted-foreground: var(--color-muted-foreground-raw);
+  --color-border: var(--color-border-raw);
+  --color-sidebar: var(--color-sidebar-raw);
+  --color-sidebar-border: var(--color-sidebar-border-raw);
+  --color-secondary: var(--color-secondary-raw);
+}
+
+/* ── Base variables for light mode ── */
+:root {
+  --color-background-raw: #ffffff;
+  --color-foreground-raw: #1a1b1e;
+  --color-muted-foreground-raw: #868e96;
+  --color-border-raw: #dee2e6;
+  --color-sidebar-raw: #f8f9fa;
+  --color-sidebar-border-raw: #e9ecef;
+  --color-secondary-raw: #f1f3f5;
+}
+
+/* ── Overrides for dark mode (when <html class="dark">) ── */
+.dark {
+  --color-background-raw: #1a1b1e;
+  --color-foreground-raw: #c1c2c5;
+  --color-muted-foreground-raw: #909296;
+  --color-border-raw: #2c2e33;
+  --color-sidebar-raw: #141517;
+  --color-sidebar-border-raw: #2c2e33;
+  --color-secondary-raw: #25262b;
+}
+
 @keyframes gradient-xy {
   0%, 100% {
     background-position: 0% 50%;
@@ -9,4 +48,34 @@
 .animate-gradient-xy {
   background-size: 200% 200%;
   animation: gradient-xy 8s ease infinite;
+}
+/* globals.css */
+
+:root {
+  --color-background: #ffffff;          /* Mantine’s white */
+  --color-foreground: #1a1b1e;         /* Mantine’s dark.9 */
+  --color-muted-foreground: #868e96;   /* Mantine’s gray.6 */
+  --color-border: #dee2e6;             /* Mantine’s gray.3 */
+  --color-sidebar: #f8f9fa;            /* Mantine’s gray.0 */
+  --color-sidebar-border: #e9ecef;     /* Mantine’s gray.2 */
+  --color-secondary: #f1f3f5;          /* Mantine’s gray.1 */
+}
+.light {
+  --color-background: #ffffff;          /* Mantine’s white */
+  --color-foreground: #1a1b1e;         /* Mantine’s dark.9 */
+  --color-muted-foreground: #868e96;   /* Mantine’s gray.6 */
+  --color-border: #dee2e6;             /* Mantine’s gray.3 */
+  --color-sidebar: #f8f9fa;            /* Mantine’s gray.0 */
+  --color-sidebar-border: #e9ecef;     /* Mantine’s gray.2 */
+  --color-secondary: #f1f3f5;          /* Mantine’s gray.1 */
+}
+
+.dark {
+  --color-background: #1a1b1e;         /* dark.9 */
+  --color-foreground: #c1c2c5;         /* gray.4 */
+  --color-muted-foreground: #909296;   /* gray.6 */
+  --color-border: #2c2e33;             /* dark.4 */
+  --color-sidebar: #141517;            /* dark.8 */
+  --color-sidebar-border: #2c2e33;     /* dark.4 */
+  --color-secondary: #25262b;          /* dark.5 */
 }
