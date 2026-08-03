@@ -6,6 +6,8 @@ export interface RecentProject {
   id: string
   name: string
   path: string
+
+  template: string,
   lastOpened: string // ISO date
 }
 

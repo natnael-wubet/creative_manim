@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion"; // Motion Primitives
 import { Button, Title, Text, Container, Group, Paper, Stack } from "@mantine/core";
 import { useAtom } from "jotai";
-import { newProjectModalOpenAtom, recentProjectsAtom } from "../../atoms/projects";
+import { currentProjectAtom, isEditingAtom, newProjectModalOpenAtom, RecentProject, recentProjectsAtom } from "../../atoms/projects";
 import { Spotlight } from "../ui/spotlight";
 import { BackgroundBeams } from "../ui/background-beams";
 import { cn } from "../../lib/utils";
@@ -52,29 +52,43 @@ const ProjectCard = ({ project, index }: { project: Project; index: number }) =>
 );
 
 export default function Home() {
-	const [recentProjects] = useAtom(recentProjectsAtom);
+	const [recentProjects, setRecentProjects] = useAtom(recentProjectsAtom);
+
+	const [isEditing, setIsEditing] = useAtom(isEditingAtom);
+	const [currentProject, setCurrentProject] = useAtom(currentProjectAtom);
 	const projects = recentProjects.length > 0 ? recentProjects : initialProjects;
 
-const [modalOpened, setModalOpened] = useAtom(newProjectModalOpenAtom);
+	const [modalOpened, setModalOpened] = useAtom(newProjectModalOpenAtom);
 
-const handleCreateProject = async (
-  name: string,
-  template: string,
-  savePath: string
-) => {
-  try {
-    const projectPath = await invoke<string>("create_project", {
-      projectName: name,
-      template,
-      savePath,
-    });
-    console.log("Project created at:", projectPath);
-    // Optionally update your recent projects atom/list
-  } catch (error) {
-    console.error("Creation failed:", error);
-    // Show an error notification (e.g., Mantine notification system)
-  }
-};
+	const handleCreateProject = async (
+		name: string,
+		template: string,
+		savePath: string
+	) => {
+		try {
+			const projectPath = await invoke<string>("create_project", {
+				projectName: name,
+				template,
+				savePath,
+			});
+			console.log("Project created at:", projectPath);
+			const thisProject: RecentProject = {
+				id: recentProjects.length.toString(),
+				name: name,
+				path: savePath,
+
+				template: template,
+				lastOpened: Date.now().toString(),
+			}
+			setCurrentProject(thisProject);
+			setRecentProjects(recentProjects.concat(thisProject));
+			setIsEditing(true);
+			// Optionally update your recent projects atom/list
+		} catch (error) {
+			console.error("Creation failed:", error);
+			// Show an error notification (e.g., Mantine notification system)
+		}
+	};
 
 	return (
 		<>
