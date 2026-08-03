@@ -15,4 +15,4 @@ export const recentProjectsAtom = atomWithStorage<RecentProject[]>('recentProjec
 
 export const currentProjectAtom = atom<RecentProject | null>(null)
 
-
+export const newProjectModalOpenAtom = atom<boolean>(false);

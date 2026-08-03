@@ -10,6 +10,7 @@ import OuterShell from "./components/OuterShell";
 import Home from "./components/Home";
 import Editor from "./components/Editor";
 import { isEditingAtom } from "./atoms/projects";
+import { ThemeSync } from "./ThemeSync";
 
 const theme = createTheme({
   /** Manim — creative animation studio theme */
@@ -70,7 +71,8 @@ function App() {
   const [isEditing] = useAtom(isEditingAtom);
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="dark">
+    <MantineProvider theme={theme} defaultColorScheme="auto" colorSchemeManager="localStorage" >
+ <ThemeSync />
       <main>
         <Routes>
           <Route path="/" element={<OuterShell />}>

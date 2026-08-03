@@ -1,6 +1,14 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+// main.rs
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;                     // Declare the commands module
+
+use commands::create_project;     // Bring the command function into scope
+
 fn main() {
-    creative_manim_lib::run()
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![create_project])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

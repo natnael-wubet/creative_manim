@@ -2,12 +2,13 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion"; // Motion Primitives
 import { Button, Title, Text, Container, Group, Paper, Stack } from "@mantine/core";
 import { useAtom } from "jotai";
-import { recentProjectsAtom } from "../../atoms/projects";
+import { newProjectModalOpenAtom, recentProjectsAtom } from "../../atoms/projects";
 import { Spotlight } from "../ui/spotlight";
 import { BackgroundBeams } from "../ui/background-beams";
 import { cn } from "../../lib/utils";
 import { Plus, FolderOpen } from "lucide-react";
-const createNewProject = () => console.log("New project");
+import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
+import { invoke } from "@tauri-apps/api/core"; // Tauri v2 invoke
 const openProject = () => console.log("Open project");
 
 interface Project {
@@ -53,6 +54,27 @@ const ProjectCard = ({ project, index }: { project: Project; index: number }) =>
 export default function Home() {
 	const [recentProjects] = useAtom(recentProjectsAtom);
 	const projects = recentProjects.length > 0 ? recentProjects : initialProjects;
+
+const [modalOpened, setModalOpened] = useAtom(newProjectModalOpenAtom);
+
+const handleCreateProject = async (
+  name: string,
+  template: string,
+  savePath: string
+) => {
+  try {
+    const projectPath = await invoke<string>("create_project", {
+      projectName: name,
+      template,
+      savePath,
+    });
+    console.log("Project created at:", projectPath);
+    // Optionally update your recent projects atom/list
+  } catch (error) {
+    console.error("Creation failed:", error);
+    // Show an error notification (e.g., Mantine notification system)
+  }
+};
 
 	return (
 		<>
@@ -113,7 +135,7 @@ export default function Home() {
 										</motion.span>
 									}
 									className="text-lg px-8 py-3 shadow-lg hover:shadow-xl transition-shadow"
-									onClick={createNewProject}
+									onClick={() => setModalOpened(true)}
 								>
 									New Project
 								</Button>
@@ -171,6 +193,12 @@ export default function Home() {
 						)}
 					</motion.div>
 				</Container>
+
+				<NewProjectModal
+					opened={modalOpened}
+					onClose={() => setModalOpened(false)}
+					onCreate={handleCreateProject}
+				/>
 			</div>
 		</>
 	);
