@@ -44,6 +44,10 @@ export const openProjectModalOpenAtom = atom<boolean>(false);
 
 export const renderQualityAtom = atomWithStorage<RenderQuality>("renderQuality", "low");
 
+/** Whether the sidebar rail shows its section labels. Collapsing keeps the
+ *  scene explorer on screen, which matters in a narrow window. */
+export const sidebarRailOpenAtom = atomWithStorage<boolean>("sidebarRailOpen", true);
+
 export const renderStateAtom = atom<RenderState>({
   status: "idle",
   log: "",

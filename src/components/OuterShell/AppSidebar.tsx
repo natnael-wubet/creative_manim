@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSetAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import {
   Delete02Icon,
   File01Icon,
@@ -17,7 +17,7 @@ import {
   AccordionTrigger,
 } from "@/components/base-ui/accordion";
 import { MacOSSidebar } from "@/components/watermelon/macos-sidebar";
-import { newProjectModalOpenAtom } from "@/atoms/projects";
+import { newProjectModalOpenAtom, sidebarRailOpenAtom } from "@/atoms/projects";
 import { useProjectActions } from "@/hooks/useProjectActions";
 import { isTauri } from "@/lib/project";
 
@@ -25,6 +25,7 @@ const SECTIONS = ["Scenes", "Assets", "Output"] as const;
 
 export function AppSidebar() {
   const setNewProjectOpen = useSetAtom(newProjectModalOpenAtom);
+  const [railOpen, setRailOpen] = useAtom(sidebarRailOpenAtom);
   const [section, setSection] = useState<string>(SECTIONS[0]);
   const [filter, setFilter] = useState("");
   const [newSceneName, setNewSceneName] = useState("");
@@ -54,6 +55,8 @@ export function AppSidebar() {
   return (
     <MacOSSidebar
       items={[...SECTIONS]}
+      open={railOpen}
+      onOpenChange={setRailOpen}
       selectedIndex={SECTIONS.indexOf(section as (typeof SECTIONS)[number])}
       onSelect={(item) => setSection(item)}
       className="h-full"

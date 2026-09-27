@@ -8,6 +8,8 @@ import { useState, type ReactNode } from "react";
 export interface MacOSSidebarProps {
   items: string[];
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   initialSelectedIndex?: number;
   selectedIndex?: number;
   onSelect?: (item: string, index: number) => void;
@@ -18,6 +20,8 @@ export interface MacOSSidebarProps {
 export function MacOSSidebar({
   items,
   defaultOpen = true,
+  open,
+  onOpenChange,
   initialSelectedIndex = 0,
   selectedIndex: controlledSelectedIndex,
   onSelect,
@@ -27,9 +31,16 @@ export function MacOSSidebar({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [internalSelectedIndex, setInternalSelectedIndex] =
     useState<number>(initialSelectedIndex);
-  const [isOpen, setIsOpen] = useState<boolean>(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState<boolean>(defaultOpen);
 
   const selectedIndex = controlledSelectedIndex ?? internalSelectedIndex;
+  const isOpen = open ?? internalOpen;
+
+  const toggleOpen = () => {
+    const next = !isOpen;
+    setInternalOpen(next);
+    onOpenChange?.(next);
+  };
 
   const select = (index: number) => {
     setInternalSelectedIndex(index);
@@ -73,11 +84,17 @@ export function MacOSSidebar({
             layout
             className="shrink-0 flex items-center justify-center"
           >
-            <HugeiconsIcon
-              icon={SidebarLeftIcon}
-              className="size-5 cursor-pointer"
-              onClick={() => setIsOpen(!isOpen)}
-            />
+            <button
+              type="button"
+              onClick={toggleOpen}
+              aria-expanded={isOpen}
+              aria-label={
+                isOpen ? "Collapse the section rail" : "Expand the section rail"
+              }
+              className="rounded-md p-1 text-sidebar-foreground transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <HugeiconsIcon icon={SidebarLeftIcon} className="size-5 cursor-pointer" />
+            </button>
           </motion.div>
         </div>
 

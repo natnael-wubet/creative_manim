@@ -3,21 +3,35 @@ import {
   Folder01Icon,
   PlayIcon,
   SaveIcon,
+  SidebarLeftIcon,
 } from "@hugeicons/core-free-icons";
+import { useAtom } from "jotai";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/base-ui/button";
 import { Badge } from "@/components/base-ui/badge";
 import { SwitchMode } from "@/components/watermelon/switch-mode";
+import { sidebarRailOpenAtom } from "@/atoms/projects";
 import { useProjectActions } from "@/hooks/useProjectActions";
 import { isTauri } from "@/lib/project";
 
 export function TopBar() {
   const { project, isEditing, isDirty, saveScene, render, reveal, closeProject, pickProject } =
     useProjectActions();
+  const [railOpen, setRailOpen] = useAtom(sidebarRailOpenAtom);
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/80 px-4 backdrop-blur">
       <div className="flex min-w-0 items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-pressed={railOpen}
+          aria-label={railOpen ? "Collapse the sidebar rail" : "Expand the sidebar rail"}
+          title={railOpen ? "Collapse the sidebar rail" : "Expand the sidebar rail"}
+          onClick={() => setRailOpen(!railOpen)}
+        >
+          <HugeiconsIcon icon={SidebarLeftIcon} className="size-4" />
+        </Button>
         {isEditing && (
           <Button
             variant="ghost"
