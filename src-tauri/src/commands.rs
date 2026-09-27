@@ -514,11 +514,55 @@ pub fn split_scene(project_path: String, scene: String) -> Result<SplitResult, S
         created.push(target.clone());
     }
 
+    // The original becomes a combiner: one scene that runs the split pieces in
+    // the order they were declared, so the stem still renders and still imports
+    // the classes it used to hold. The text it replaces is kept next to it,
+    // because a split can leave a class behind in a file that already existed
+    // and the original is the only copy of that version.
+    let backup = file.with_extension("py.orig");
+    fs::write(&backup, &source).map_err(|e| e.to_string())?;
+    fs::write(&file, combiner_source(&scenes)).map_err(|e| e.to_string())?;
+
     Ok(SplitResult {
         created,
         existing,
         scenes: list_scenes(Path::new(&project_path)),
     })
+}
+
+/// A single scene that runs each split piece in turn.
+///
+/// A class called `Scene` or `Combined` would shadow the names this needs, so
+/// those two arrive under an alias instead.
+fn combiner_source(scenes: &[String]) -> String {
+    let mut imports = Vec::new();
+    let mut names = Vec::new();
+    for (index, name) in scenes.iter().enumerate() {
+        if name == "Scene" || name == "Combined" {
+            let alias = format!("{name}Part{index}");
+            imports.push(format!("from {name} import {name} as {alias}"));
+            names.push(alias);
+        } else {
+            imports.push(format!("from {name} import {name}"));
+            names.push(name.clone());
+        }
+    }
+
+    let mut out = String::from(
+        "\"\"\"The scenes that used to be in this file, run one after another.\n\n\
+         They were split out into the files imported below, each with the module\n\
+         level code it needs. Delete this file if you do not need the combined\n\
+         view; the original text is in the .py.orig next to it.\n\
+         \"\"\"\n\n\
+         from manim import Scene\n\n",
+    );
+    out.push_str(&imports.join("\n"));
+    out.push_str("\n\n\nclass Combined(Scene):\n    def construct(self):\n        for scene_cls in (\n");
+    for name in &names {
+        out.push_str(&format!("            {name},\n"));
+    }
+    out.push_str("        ):\n            scene_cls().construct(self)\n");
+    out
 }
 
 /// True unless the `moov` atom already sits in front of the media data. Only
@@ -1021,6 +1065,19 @@ class Body(Scene):
         fs::remove_dir_all(&root).unwrap();
     }
 
+
+    #[test]
+    fn the_combiner_aliases_a_class_that_would_shadow_its_own_names() {
+        let combined = combiner_source(&["Scene".into(), "Combined".into(), "Body".into()]);
+        assert!(combined.contains("from Scene import Scene as ScenePart0"), "{combined}");
+        assert!(combined.contains("from Combined import Combined as CombinedPart1"), "{combined}");
+        assert!(combined.contains("from Body import Body"), "{combined}");
+        // The sequence uses the aliases, not the shadowing names.
+        assert!(combined.contains("            ScenePart0,"), "{combined}");
+        assert!(combined.contains("            CombinedPart1,"), "{combined}");
+        assert!(combined.contains("            Body,"), "{combined}");
+    }
+
     #[test]
     fn splits_a_multi_scene_file_into_one_file_per_class() {
         let root = temp_dir("split");
@@ -1060,8 +1117,22 @@ class Outro(Scene):
         let result = split_scene(info.path.clone(), "chapter".into()).unwrap();
         assert_eq!(result.created, vec!["Title", "Body", "Outro"]);
         assert!(result.existing.is_empty());
-        // The original is left for the user to remove.
-        assert!(scenes.join("chapter.py").exists());
+        // The original keeps working as a combined scene.
+        let combined = fs::read_to_string(scenes.join("chapter.py")).unwrap();
+        assert!(combined.contains("class Combined(Scene):"), "{combined}");
+        assert!(combined.contains("from Title import Title"), "{combined}");
+        assert!(combined.contains("from Body import Body"), "{combined}");
+        assert!(combined.contains("from Outro import Outro"), "{combined}");
+        // Declaration order, so the pieces play in the order they were written.
+        let order: Vec<_> = ["Title", "Body", "Outro"]
+            .iter()
+            .map(|n| combined.find(&format!("{n},")).unwrap())
+            .collect();
+        assert!(order.windows(2).all(|w| w[0] < w[1]), "wrong order: {combined}");
+        // And the text it replaced is still on disk.
+        let backup = fs::read_to_string(scenes.join("chapter.py.orig")).unwrap();
+        assert!(backup.contains("class Outro(Scene):"));
+        assert!(backup.contains("def helper():"));
 
         let body = fs::read_to_string(scenes.join("Body.py")).unwrap();
         // The preamble and the helper survive, so the piece still runs.
@@ -1086,7 +1157,7 @@ class Outro(Scene):
         }
 
         // Every piece has to be valid python on its own.
-        for name in ["Title", "Body", "Outro"] {
+        for name in ["Title", "Body", "Outro", "chapter"] {
             let path = scenes.join(format!("{name}.py"));
             let output = Command::new("python3")
                 .args(["-c", "import ast,sys;ast.parse(open(sys.argv[1]).read())"])
