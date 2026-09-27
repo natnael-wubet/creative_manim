@@ -381,6 +381,12 @@ fn top_level_classes(source: &str) -> Vec<ClassBlock> {
         while start > 0 && lines[start - 1].trim_start().starts_with('#') {
             start -= 1;
         }
+        // The scan above stops at this class, so the previous block already
+        // swallowed the comment lines that belong to this one. Hand them over,
+        // otherwise the same comment ends up in two generated files.
+        if let Some(previous) = blocks.last_mut() {
+            previous.end = previous.end.min(start);
+        }
 
         blocks.push(ClassBlock {
             name,
@@ -976,6 +982,44 @@ mod tests {
         fs::remove_dir_all(&root).unwrap();
     }
 
+
+
+    #[test]
+    fn a_comment_goes_to_the_class_below_it_and_nowhere_else() {
+        let root = temp_dir("split-comment");
+        let info = create_project("Split".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let scenes = Path::new(&info.path).join("scenes");
+        fs::write(
+            scenes.join("chapter.py"),
+            r#"from manim import *
+
+
+# belongs to Title
+class Title(Scene):
+    pass
+
+
+# belongs to Body
+class Body(Scene):
+    pass
+"#,
+        )
+        .unwrap();
+
+        split_scene(info.path.clone(), "chapter".into()).unwrap();
+
+        let title = fs::read_to_string(scenes.join("Title.py")).unwrap();
+        let body = fs::read_to_string(scenes.join("Body.py")).unwrap();
+        assert!(title.contains("# belongs to Title"));
+        assert!(!title.contains("# belongs to Body"), "leaked into Title: {title}");
+        assert!(body.contains("# belongs to Body"));
+        assert!(!body.contains("# belongs to Title"), "leaked into Body: {body}");
+
+        // A comment with no class after it stays with the last one.
+        assert!(body.contains("pass"), "{body}");
+
+        fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn splits_a_multi_scene_file_into_one_file_per_class() {
