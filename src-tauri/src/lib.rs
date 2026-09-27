@@ -3,8 +3,8 @@ pub mod commands;
 pub mod media;
 
 use commands::{
-    create_project, create_scene, delete_scene, open_path, open_project, read_scene, render_scene,
-    save_scene,
+    create_project, create_scene, delete_scene, latest_render, open_path, open_project, read_scene,
+    render_scene, save_scene,
 };
 use media::MediaServer;
 use std::sync::Arc;
@@ -23,6 +23,7 @@ pub fn run() {
             create_scene,
             delete_scene,
             render_scene,
+            latest_render,
             open_path,
             media::media_url
         ])

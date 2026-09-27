@@ -307,6 +307,25 @@ pub fn delete_scene(project_path: String, scene: String) -> Result<Vec<String>, 
     Ok(list_scenes(Path::new(&project_path)))
 }
 
+/// True unless the `moov` atom already sits in front of the media data. Only
+/// the head of the file is inspected, which is all that decides it.
+fn needs_faststart(path: &Path) -> bool {
+    fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+    }
+    let Ok(bytes) = fs::read(path) else {
+        return false;
+    };
+    let head = &bytes[..bytes.len().min(1 << 20)];
+    match (find(head, b"moov"), find(head, b"mdat")) {
+        (Some(moov), Some(mdat)) => moov > mdat,
+        (Some(_), None) => false,
+        _ => true,
+    }
+}
+
 fn newest_video(media_dir: &Path) -> Option<String> {
     // Manim also writes per-animation fragments into `partial_movie_files`;
     // only the combined movies under `videos/` count as a finished render.
@@ -340,6 +359,9 @@ fn newest_video(media_dir: &Path) -> Option<String> {
 /// nothing, and leaves the index up front. A missing ffmpeg is not fatal.
 fn remux_faststart(video: &str) {
     let path = Path::new(video);
+    if !needs_faststart(path) {
+        return;
+    }
     let staged = path.with_extension("mp4.faststart");
 
     let result = Command::new("ffmpeg")
@@ -366,7 +388,78 @@ fn remux_faststart(video: &str) {
     let _ = fs::remove_file(&staged);
 }
 
-#[tauri::command]
+/// Manim reads `media_dir` out of the project's `manim.cfg`, so a project made
+/// outside this app may not keep its videos under `media/` at all. Returns the
+/// directories that can hold a finished movie.
+fn video_roots(project_dir: &Path) -> Vec<PathBuf> {
+    let mut roots = vec![project_dir.join("media").join("videos")];
+    if let Some(configured) = fs::read_to_string(project_dir.join("manim.cfg"))
+        .ok()
+        .and_then(|cfg| {
+            cfg.lines()
+                .filter_map(|line| line.split_once('='))
+                .find(|(key, _)| key.trim().eq_ignore_ascii_case("media_dir"))
+                .map(|(_, value)| value.trim().to_string())
+        })
+    {
+        let root = project_dir.join(configured).join("videos");
+        if !roots.contains(&root) {
+            roots.push(root);
+        }
+    }
+    roots
+}
+
+/// The newest finished movie for one scene class, skipping the per-animation
+/// fragments. Matching on the class name matters: a scene lives at
+/// `<media_dir>/videos/<file stem>/<quality>/<class name>.mp4`, so the directory
+/// and the file disagree for any project that does not name its classes after
+/// their files.
+fn latest_scene_video(project_dir: &Path, class_name: &str) -> Option<String> {
+    fn collect(dir: &Path, class_name: &str, best: &mut Option<(std::time::SystemTime, PathBuf)>) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().and_then(|n| n.to_str()) != Some("partial_movie_files") {
+                    collect(&path, class_name, best);
+                }
+            } else if path.extension().and_then(|e| e.to_str()) == Some("mp4")
+                && path.file_stem().and_then(|s| s.to_str()) == Some(class_name)
+            {
+                if let Ok(modified) = entry.metadata().and_then(|m| m.modified()) {
+                    if best.as_ref().is_none_or(|(seen, _)| modified > *seen) {
+                        *best = Some((modified, path));
+                    }
+                }
+            }
+        }
+    }
+
+    let mut best = None;
+    for root in video_roots(project_dir) {
+        collect(&root, class_name, &mut best);
+    }
+    best.map(|(_, path)| path.to_string_lossy().into_owned())
+}
+
+/// The last render of a scene, if the project still has one on disk. Lets the
+/// preview show a finished video without paying for another render.
+#[tauri::command(async)]
+pub fn latest_render(project_path: String, scene: String) -> Result<Option<String>, String> {
+    let stem = scene.trim().to_string();
+    let file = scene_file(&project_path, &stem)?;
+    let project_dir = Path::new(&project_path);
+    if !file.exists() {
+        return Ok(None);
+    }
+    let class_name = scene_class_name(&file, &stem);
+    Ok(latest_scene_video(project_dir, &class_name))
+}
+
+#[tauri::command(async)]
 pub fn render_scene(
     project_path: String,
     scene: String,
@@ -414,7 +507,10 @@ pub fn render_scene(
 
     let ok = output.status.success();
     let video = if ok {
-        let found = newest_video(&Path::new(&project_path).join("media"));
+        // Prefer the movie that belongs to the class we just asked manim for;
+        // fall back to the newest one in case the class guess was off.
+        let found = latest_scene_video(Path::new(&project_path), &class_name)
+            .or_else(|| newest_video(&Path::new(&project_path).join("media")));
         if let Some(path) = &found {
             remux_faststart(path);
         }
@@ -605,6 +701,70 @@ mod tests {
         assert!(result.ok, "manim failed:\n{}", result.output);
         assert!(result.video.expect("no video").ends_with("Scene02Ch1.mp4"));
 
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+
+    #[test]
+    fn finds_a_previous_render_without_rendering() {
+        let root = temp_dir("latest");
+        let info = create_project("Prev".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let project = Path::new(&info.path);
+
+        // Nothing rendered yet.
+        assert_eq!(latest_render(info.path.clone(), "BlankCanvas".into()).unwrap(), None);
+
+        // Manim puts the movie at <media_dir>/videos/<file stem>/<quality>/<class>.mp4,
+        // so the directory and the file name disagree for this project shape.
+        let out = project.join("media").join("videos").join("s02_ch1").join("480p15");
+        fs::create_dir_all(&out).unwrap();
+        fs::write(
+            project.join("scenes").join("s02_ch1.py"),
+            "class Scene02Ch1(Scene):\n    pass\n",
+        )
+        .unwrap();
+        fs::write(out.join("Scene02Ch1.mp4"), "not really a movie").unwrap();
+
+        let found = latest_render(info.path.clone(), "s02_ch1".into()).unwrap();
+        assert_eq!(found.as_deref(), Some(out.join("Scene02Ch1.mp4").to_str().unwrap()));
+        // Another scene must not borrow it.
+        assert_eq!(latest_render(info.path.clone(), "BlankCanvas".into()).unwrap(), None);
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn finds_renders_written_to_a_configured_media_dir() {
+        let root = temp_dir("mediadir");
+        let info = create_project("Cfg".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let project = Path::new(&info.path);
+        fs::write(project.join("manim.cfg"), "[CLI]\nmedia_dir = renders\n").unwrap();
+
+        let out = project.join("renders").join("videos").join("BlankCanvas").join("1080p60");
+        fs::create_dir_all(&out).unwrap();
+        fs::write(out.join("BlankCanvas.mp4"), "movie").unwrap();
+        // A fragment must never win over the combined movie.
+        let partial = out.join("partial_movie_files").join("BlankCanvas");
+        fs::create_dir_all(&partial).unwrap();
+        fs::write(partial.join("BlankCanvas.mp4"), "fragment").unwrap();
+
+        let found = latest_render(info.path.clone(), "BlankCanvas".into()).unwrap().expect("no render found");
+        assert!(found.ends_with("videos/BlankCanvas/1080p60/BlankCanvas.mp4"), "got {found}");
+        assert!(!found.contains("partial_movie_files"));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn an_already_seekable_movie_is_left_alone() {
+        let root = temp_dir("faststart");
+        let path = root.join("clip.mp4");
+        // moov ahead of mdat is already seekable, so no remux is needed.
+        fs::write(&path, b"\0\0\0\x18ftypmoov......mdat").unwrap();
+        assert!(!needs_faststart(&path));
+        fs::write(&path, b"\0\0\0\x18ftypmdat......moov").unwrap();
+        assert!(needs_faststart(&path));
+        assert!(!needs_faststart(&root.join("missing.mp4")));
         fs::remove_dir_all(&root).unwrap();
     }
 }
