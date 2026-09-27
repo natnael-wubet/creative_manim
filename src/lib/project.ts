@@ -59,6 +59,12 @@ export const projectApi = {
     return invoke<RenderResult>("render_scene", { projectPath, scene, quality });
   },
 
+  /** A previous render of this scene, if the project still has one on disk. */
+  latestRender: (projectPath: string, scene: string) => {
+    assertTauri();
+    return invoke<string | null>("latest_render", { projectPath, scene });
+  },
+
   /** Loopback URL for a rendered video. The asset protocol cannot play video on
    *  WebKitGTK, so the preview streams over http instead. */
   media: (path: string) => {

@@ -1,5 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAtom } from "jotai";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import {
   activeSceneAtom,
@@ -105,6 +106,33 @@ export function useProjectActions() {
     const code = await projectApi.readScene(info.path, scene);
     setCodeMap((prev) => ({ ...prev, [scene]: code }));
   };
+
+  /** Show whatever is already on disk for a scene, so the preview is useful
+   *  before anyone pays for a render. Driven by an effect in the Editor, which
+   *  is the only thing that mounts once; putting it here would run per consumer. */
+  const showLastRender = useCallback(
+    async (scene: string, info: ProjectInfo) => {
+      try {
+        const video = await projectApi.latestRender(info.path, scene);
+        setRenderState((prev) =>
+          // A render that is running or just finished owns the preview.
+          prev.scene === scene
+            ? prev
+            : video
+              ? {
+                  status: "ok",
+                  log: `Showing the last render of ${scene}. Render again to refresh it.`,
+                  video,
+                  scene,
+                }
+              : { status: "idle", log: "", video: null, scene: null },
+        );
+      } catch {
+        // No previous render is the normal case, not worth a toast.
+      }
+    },
+    [setRenderState],
+  );
 
   const selectScene = async (scene: string, info: ProjectInfo = project!) => {
     setActiveScene(scene);
@@ -228,6 +256,7 @@ export function useProjectActions() {
     saveScene,
     createScene,
     deleteScene,
+    showLastRender,
     render,
     reveal,
     closeProject,

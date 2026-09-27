@@ -34,7 +34,17 @@ function Editor() {
     saveScene,
     render,
     reveal,
+    showLastRender,
   } = useProjectActions();
+
+  // Restore the preview from whatever is already on disk. Keyed on the project
+  // object rather than its path so reopening a project reloads it even when the
+  // first scene is the same one that was active before.
+  useEffect(() => {
+    if (activeScene && project) {
+      void showLastRender(activeScene, project);
+    }
+  }, [activeScene, project, showLastRender]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -84,7 +94,11 @@ function Editor() {
                 <TabsTrigger value="preview">Preview</TabsTrigger>
                 <TabsTrigger value="console">Console</TabsTrigger>
               </TabsList>
-              <Button size="sm" disabled={!isTauri()} onClick={() => render()}>
+              <Button
+                size="sm"
+                disabled={!isTauri() || renderState.status === "running"}
+                onClick={() => render()}
+              >
                 <HugeiconsIcon icon={PlayIcon} className="size-4" />
                 Render
               </Button>

@@ -74,6 +74,10 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
 - `src/atoms/projects.ts` — persisted `currentProjectAtom`, `isEditingAtom`, `activeSceneAtom`, `recentProjectsAtom`, `renderQualityAtom`, `sidebarRailOpenAtom`; in-memory `sceneCodeAtom`, `dirtyScenesAtom`, `renderStateAtom`, modal atoms.
 - `src/lib/project.ts` — typed `projectApi` wrappers over `invoke` plus the `isTauri()` guard. Go through it; never call `invoke` from a component.
 - `src/hooks/useProjectActions.ts` — every flow (pick/create/open project, select scene, edit, save, add/delete scene, render, reveal) with sonner toasts. Components consume this hook instead of duplicating logic. `createScene` must select the stem the returned list reports, not the typed text, because the backend sanitizes the new name.
+- `showLastRender` is called from an effect in `Editor`, not from inside the hook, because the hook
+  has five consumers and an effect in it would run five times. `Editor` is the only mount-once
+  component and it keys the effect on the `project` object, not its path, so reopening a project
+  reloads the preview even when the first scene is unchanged.
 - Editor shortcut: `Ctrl/Cmd+S` saves the active scene.
 - Scene list = file stems of `scenes/*.py`; the stem is also the Python class name.
 
@@ -91,7 +95,9 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
   `scene_class_name` for the declared class, so `scenes/s02_ch1.py` declaring `class Scene02Ch1`
   renders. Pass the stem the scene list reports, not the text the user typed, or the lookup misses.
 - `create_project` writes `project.json`, `assets/`, and one starter scene (`Mathematics`, `Physics`, `CodeAnimation`, or `BlankCanvas`); the parent folder is picked by the frontend with `@tauri-apps/plugin-dialog`.
-- `render_scene` maps quality to `-ql | -qm | -qh | -qp`, runs `manim render --media_dir media --progress_bar none` inside the project, and returns the newest **combined** mp4 — `partial_movie_files` is skipped deliberately, otherwise a partial fragment wins.
+- `render_scene` maps quality to `-ql | -qm | -qh | -qp`, runs `manim render --media_dir media --progress_bar none` inside the project, and returns the movie for the class it rendered — looked up by class name, with `newest_video` only as a fallback. `partial_movie_files` is skipped deliberately, otherwise a partial fragment wins.
+- `render_scene` and `latest_render` are declared `#[tauri::command(async)]` **on purpose**. A command without `async` runs on the main thread, so a multi-minute manim render froze the whole window. Keep any long or blocking command marked `async`.
+- `latest_render` powers the preview: it returns the scene's newest finished movie so the preview shows the last render instead of an empty box. Search both `media/videos` and the `media_dir` from the project's `manim.cfg` — a project made elsewhere may put its videos in `renders/videos` instead. Manim writes `<media_dir>/videos/<file stem>/<quality>/<class>.mp4`, so the directory is the stem and the file is the class; match on the class name.
 - `open_path` (reveal in the file manager) needs `opener:allow-open-path` in `src-tauri/capabilities/default.json`.
 - `src-tauri/tauri.conf.json` also owns the window geometry (1440x900, min 960x600) and the `Manim Studio` product name.
 
@@ -113,7 +119,9 @@ The preview `<video>` is **not** fed by `convertFileSrc`. It is served by a loop
   the `commands.rs` functions stay plain. `lib.rs` holds the `Arc<MediaServer>` in the Tauri state.
 - `render_scene` remuxes with `ffmpeg -c copy -movflags +faststart` to a staged `*.mp4.faststart`
   file (needs `-f mp4`, since the staged extension confuses ffmpeg's muxer choice) and renames it
-  only on success. Remux failure is non-fatal; the un-remuxed file still plays.
+  only on success. Remux failure is non-fatal; the un-remuxed file still plays. `needs_faststart`
+  skips the remux when `moov` already precedes `mdat`, which matters now that opening a scene
+  looks at its old render.
 - Frontend: `src/components/Editor/VideoPlayer.tsx`, reached through `projectApi.media()`. Playback
   state (volume, muted, rate, loop) persists under `manimPlayer`.
 - `csp` is `null` in `tauri.conf.json`, which is what lets the webview load `http://127.0.0.1`.
