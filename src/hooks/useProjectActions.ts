@@ -136,10 +136,15 @@ export function useProjectActions() {
   const createScene = async (name: string) => {
     if (!project) return;
     try {
+      const before = new Set(project.scenes);
       const scenes = await projectApi.createScene(project.path, name);
       setProject({ ...project, scenes });
       toast.success(`Added ${name}`);
-      await selectScene(name);
+      // The backend derives a valid class name from the typed text, so
+      // "third scene" lands on disk as `Third.py`. Select the stem the list
+      // actually reports instead of echoing back what was typed.
+      const created = scenes.find((scene) => !before.has(scene)) ?? name;
+      await selectScene(created);
     } catch (error) {
       toast.error(errorMessage(error));
     }

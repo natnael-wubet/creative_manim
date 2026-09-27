@@ -73,7 +73,7 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
 
 - `src/atoms/projects.ts` — persisted `currentProjectAtom`, `isEditingAtom`, `activeSceneAtom`, `recentProjectsAtom`, `renderQualityAtom`, `sidebarRailOpenAtom`; in-memory `sceneCodeAtom`, `dirtyScenesAtom`, `renderStateAtom`, modal atoms.
 - `src/lib/project.ts` — typed `projectApi` wrappers over `invoke` plus the `isTauri()` guard. Go through it; never call `invoke` from a component.
-- `src/hooks/useProjectActions.ts` — every flow (pick/create/open project, select scene, edit, save, add/delete scene, render, reveal) with sonner toasts. Components consume this hook instead of duplicating logic.
+- `src/hooks/useProjectActions.ts` — every flow (pick/create/open project, select scene, edit, save, add/delete scene, render, reveal) with sonner toasts. Components consume this hook instead of duplicating logic. `createScene` must select the stem the returned list reports, not the typed text, because the backend sanitizes the new name.
 - Editor shortcut: `Ctrl/Cmd+S` saves the active scene.
 - Scene list = file stems of `scenes/*.py`; the stem is also the Python class name.
 
@@ -81,7 +81,15 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
 
 - `src-tauri/src/commands.rs` — `create_project`, `open_project`, `read_scene`, `save_scene`, `create_scene`, `delete_scene`, `render_scene`, `open_path`, plus `#[cfg(test)]` tests that call them directly. They are plain functions, no `State` or `AppHandle`.
 - `src-tauri/src/lib.rs` owns `run()` and the `generate_handler!` list; `main.rs` only calls `creative_manim_lib::run()`. **Register new commands in `lib.rs`.**
-- Scene identity: `sanitize_class` PascalCases input, so `third scene` becomes `Third` and lives at `scenes/Third.py` with `class Third(Scene)`.
+- Scene identity: `create_scene` runs `sanitize_class` (PascalCase, spaces removed, leading digit gets
+  an `S`) because it is inventing a class name — `third scene` becomes `Third` at `scenes/Third.py`.
+  Commands that address an *existing* scene (`read_scene`, `save_scene`, `delete_scene`,
+  `render_scene`) must **not** sanitize: they resolve the stem through `scene_file`, which validates
+  without rewriting, because the scene list reports real file stems and a project made outside this
+  app can have stems like `s02_ch1` that `sanitize_class` would mangle into `S02_ch1`.
+- A scene file's class does not have to match its stem. `render_scene` reads the file and asks
+  `scene_class_name` for the declared class, so `scenes/s02_ch1.py` declaring `class Scene02Ch1`
+  renders. Pass the stem the scene list reports, not the text the user typed, or the lookup misses.
 - `create_project` writes `project.json`, `assets/`, and one starter scene (`Mathematics`, `Physics`, `CodeAnimation`, or `BlankCanvas`); the parent folder is picked by the frontend with `@tauri-apps/plugin-dialog`.
 - `render_scene` maps quality to `-ql | -qm | -qh | -qp`, runs `manim render --media_dir media --progress_bar none` inside the project, and returns the newest **combined** mp4 — `partial_movie_files` is skipped deliberately, otherwise a partial fragment wins.
 - `open_path` (reveal in the file manager) needs `opener:allow-open-path` in `src-tauri/capabilities/default.json`.
