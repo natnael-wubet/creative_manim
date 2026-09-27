@@ -101,6 +101,30 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
 - `open_path` (reveal in the file manager) needs `opener:allow-open-path` in `src-tauri/capabilities/default.json`.
 - `src-tauri/tauri.conf.json` also owns the window geometry (1440x900, min 960x600) and the `Manim Studio` product name.
 
+## Splitting a multi-scene file
+
+One `scenes/*.py` can declare several `Scene` subclasses, in which case the scene list only offers
+the stem and the extra classes are unreachable. `scene_classes` reports them; `split_scene` writes
+each out as `scenes/<ClassName>.py`.
+
+- Detection is a **line scan**, not an AST: `top_level_classes` finds `class` at column zero and
+  runs each block to the next one, then `scene_class_names` iterates the bases to a fixed point. A
+  class hanging off a locally declared `ChapterScene` still counts, and a chain rooted at something
+  that is not a scene counts as none. Do not "fix" the ordering bug this hides — the loop already
+  re-runs until nothing new appears.
+- Each generated file keeps the preamble, the module level code and any **non-scene** classes, so a
+  piece imports on its own. Anything that lives between two scene classes, including the comment
+  block above the second class, is carried by the file that keeps that class.
+- `split_scene` **never overwrites**: an existing `scenes/<ClassName>.py` is reported in
+  `existing` and left alone. It also **never deletes the original**, because the file may hold code
+  the author still wants. The toast says so.
+- The frontend enables the button only when `sceneClassNamesAtom` holds more than one entry, so it
+  never advertises a split that would fail. After a split the scene list comes from the backend's
+  `scenes` field, not from names the UI guessed.
+- These two commands are plain sync commands. They only touch one source file, so the main thread
+  cost is a read and a few small writes. If that ever stops being true, mark them
+  `#[tauri::command(async)]` for the reason above.
+
 ## Video preview (do not "simplify" this back)
 
 The preview `<video>` is **not** fed by `convertFileSrc`. It is served by a loopback HTTP server.
