@@ -25,7 +25,7 @@ scenes fail; the starter templates use `Text`. Install LaTeX before promising ma
 - `src/App.tsx` — route `/` renders `Home` or `Editor` based on `isEditingAtom`; also mounts `NewProjectModal` and the sonner `Toaster`, and imports `src/index.css`. Keep the CSS import.
 - `src/main.tsx` — `BrowserRouter` + `StrictMode` only.
 - `src/components/OuterShell/` — `TopBar` (brand, project, save, render, theme switch), `AppSidebar` (Watermelon `MacOSSidebar` + scene explorer), `OuterShell` (header/sidebar grid with `<Outlet>`).
-- `src/components/Editor/` — Ace pane, resizable preview/console, render quality + output path.
+- `src/components/Editor/` — Ace pane, resizable preview/console, render quality + output path, and `VideoPlayer` (the preview transport).
 - `src/components/CodeEditor/` — Ace wrapper.
 - `src/components/Home/` — hero, feature cards, recent projects.
 - `src/components/NewProjectModal/` — base-ui dialog: name + template, then a folder picker, then `create_project`.
@@ -54,8 +54,12 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
   Registry demos the app does not use are deleted, not kept.
 - Vendored files keep their original code; edits stay local and minimal. `macos-sidebar.tsx` swaps the
   neutral palette for sidebar theme tokens and adds controlled selection (`selectedIndex`/`onSelect`).
-- The sidebar rail animates to 240px, so the shell `<aside>` is 520px. Narrowing it squashes the
-  explorer to ~40px wide.
+- The rail is a fixed 240px open and 65px folded, inside `p-2` (16px) + `p-3` (24px) with a
+  `pl-4 lg:pl-8` / `pr-2` gutter on the content pane. `OuterShell` sizes the `<aside>` from those
+  numbers (520/360 wide, 500/330 narrow) so scene names stay readable down to the 960px window
+  minimum. Do not shrink those widths "to save space" — it silently starves the explorer.
+- `sidebarRailOpenAtom` drives the rail, and `OuterShell` folds it below 1280px on breakpoint
+  crossings only, so a manual toggle is not fought by an effect.
 
 ## Theming
 
@@ -67,7 +71,7 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
 
 ## Project state and Tauri calls
 
-- `src/atoms/projects.ts` — persisted `currentProjectAtom`, `isEditingAtom`, `activeSceneAtom`, `recentProjectsAtom`, `renderQualityAtom`; in-memory `sceneCodeAtom`, `dirtyScenesAtom`, `renderStateAtom`, modal atoms.
+- `src/atoms/projects.ts` — persisted `currentProjectAtom`, `isEditingAtom`, `activeSceneAtom`, `recentProjectsAtom`, `renderQualityAtom`, `sidebarRailOpenAtom`; in-memory `sceneCodeAtom`, `dirtyScenesAtom`, `renderStateAtom`, modal atoms.
 - `src/lib/project.ts` — typed `projectApi` wrappers over `invoke` plus the `isTauri()` guard. Go through it; never call `invoke` from a component.
 - `src/hooks/useProjectActions.ts` — every flow (pick/create/open project, select scene, edit, save, add/delete scene, render, reveal) with sonner toasts. Components consume this hook instead of duplicating logic.
 - Editor shortcut: `Ctrl/Cmd+S` saves the active scene.
@@ -80,8 +84,31 @@ npx shadcn@latest add https://registry.watermelon.sh/r/<slug>.json -y -o -p src/
 - Scene identity: `sanitize_class` PascalCases input, so `third scene` becomes `Third` and lives at `scenes/Third.py` with `class Third(Scene)`.
 - `create_project` writes `project.json`, `assets/`, and one starter scene (`Mathematics`, `Physics`, `CodeAnimation`, or `BlankCanvas`); the parent folder is picked by the frontend with `@tauri-apps/plugin-dialog`.
 - `render_scene` maps quality to `-ql | -qm | -qh | -qp`, runs `manim render --media_dir media --progress_bar none` inside the project, and returns the newest **combined** mp4 — `partial_movie_files` is skipped deliberately, otherwise a partial fragment wins.
-- `open_path` (reveal in the file manager) needs `opener:allow-open-path` in `src-tauri/capabilities/default.json`. The preview `<video>` uses `convertFileSrc`, which needs the `protocol-asset` cargo feature **and** `app.security.assetProtocol` in `tauri.conf.json`. Both are configured; move one without the other and the build or the video breaks.
+- `open_path` (reveal in the file manager) needs `opener:allow-open-path` in `src-tauri/capabilities/default.json`.
 - `src-tauri/tauri.conf.json` also owns the window geometry (1440x900, min 960x600) and the `Manim Studio` product name.
+
+## Video preview (do not "simplify" this back)
+
+The preview `<video>` is **not** fed by `convertFileSrc`. It is served by a loopback HTTP server.
+
+- `convertFileSrc` yields `asset://localhost/...`, and WebKitGTK hands that URI to GStreamer, which
+  will not decode it. The video silently never plays. This is upstream, not a config mistake:
+  tauri#3725, WebKit bug 146351. Tauri's asset protocol is fine (correct `video/mp4`, real Range
+  support, `["**"]` scope matches the absolute path) — the GStreamer/URI-scheme handoff is what
+  breaks. `assetProtocol` and the `protocol-asset` feature stay configured, so do not chase them.
+- `src-tauri/src/media.rs` is a hand-rolled `std::net` server on `127.0.0.1:0`, started lazily on
+  the first `media_url` call. It serves only paths that were explicitly registered (opaque token
+  per file, allowlist capped at 32), so it is not a general file server. It answers `GET`/`HEAD`
+  with `200`/`206`/`404`/`416`, and closes the connection per request (`Connection: close`) rather
+  than implementing keep-alive.
+- `media_url` in `src-tauri/src/media.rs` is the one command that takes `State<'_, Arc<MediaServer>>`;
+  the `commands.rs` functions stay plain. `lib.rs` holds the `Arc<MediaServer>` in the Tauri state.
+- `render_scene` remuxes with `ffmpeg -c copy -movflags +faststart` to a staged `*.mp4.faststart`
+  file (needs `-f mp4`, since the staged extension confuses ffmpeg's muxer choice) and renames it
+  only on success. Remux failure is non-fatal; the un-remuxed file still plays.
+- Frontend: `src/components/Editor/VideoPlayer.tsx`, reached through `projectApi.media()`. Playback
+  state (volume, muted, rate, loop) persists under `manimPlayer`.
+- `csp` is `null` in `tauri.conf.json`, which is what lets the webview load `http://127.0.0.1`.
 
 ## Editor notes
 
