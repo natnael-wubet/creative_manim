@@ -1,6 +1,7 @@
+import { useAtomValue } from "jotai";
 import { useEffect } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { Alert02Icon, PlayIcon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, Copy01Icon, PlayIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/base-ui/badge";
 import { Button } from "@/components/base-ui/button";
@@ -11,6 +12,7 @@ import { Separator as Divider } from "@/components/base-ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base-ui/tabs";
 import CodeEditor from "@/components/CodeEditor/CodeEditor";
 import VideoPlayer from "@/components/Editor/VideoPlayer";
+import { sceneClassNamesAtom } from "@/atoms/projects";
 import { useProjectActions } from "@/hooks/useProjectActions";
 import { isTauri } from "@/lib/project";
 
@@ -35,7 +37,10 @@ function Editor() {
     render,
     reveal,
     showLastRender,
+    loadSceneClasses,
+    splitScene,
   } = useProjectActions();
+  const sceneClasses = useAtomValue(sceneClassNamesAtom);
 
   // Restore the preview from whatever is already on disk. Keyed on the project
   // object rather than its path so reopening a project reloads it even when the
@@ -43,8 +48,9 @@ function Editor() {
   useEffect(() => {
     if (activeScene && project) {
       void showLastRender(activeScene, project);
+      void loadSceneClasses(activeScene, project);
     }
-  }, [activeScene, project, showLastRender]);
+  }, [activeScene, project, showLastRender, loadSceneClasses]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -94,6 +100,20 @@ function Editor() {
                 <TabsTrigger value="preview">Preview</TabsTrigger>
                 <TabsTrigger value="console">Console</TabsTrigger>
               </TabsList>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!isTauri() || sceneClasses.length < 2}
+                title={
+                  sceneClasses.length > 1
+                    ? `Write ${sceneClasses.length} scene classes into separate files`
+                    : "This file already declares a single scene class"
+                }
+                onClick={() => splitScene()}
+              >
+                <HugeiconsIcon icon={Copy01Icon} className="size-4" />
+                {sceneClasses.length > 1 ? `Split ${sceneClasses.length} scenes` : "Split"}
+              </Button>
               <Button
                 size="sm"
                 disabled={!isTauri() || renderState.status === "running"}

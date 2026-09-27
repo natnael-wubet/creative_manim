@@ -7,6 +7,12 @@ export interface RenderResult {
   video: string | null;
 }
 
+export interface SplitResult {
+  created: string[];
+  existing: string[];
+  scenes: string[];
+}
+
 export const isTauri = () =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -52,6 +58,18 @@ export const projectApi = {
   deleteScene: (projectPath: string, scene: string) => {
     assertTauri();
     return invoke<string[]>("delete_scene", { projectPath, scene });
+  },
+
+  /** The scene classes a file declares, which is more than one when the file
+   *  is really several scenes that never got split up. */
+  sceneClasses: (projectPath: string, scene: string) => {
+    assertTauri();
+    return invoke<string[]>("scene_classes", { projectPath, scene });
+  },
+
+  splitScene: (projectPath: string, scene: string) => {
+    assertTauri();
+    return invoke<SplitResult>("split_scene", { projectPath, scene });
   },
 
   render: (projectPath: string, scene: string, quality: RenderQuality) => {

@@ -54,3 +54,7 @@ export const renderStateAtom = atom<RenderState>({
   video: null,
   scene: null,
 });
+
+/** Scene classes declared by the active scene's file. More than one means the
+ *  file is really several scenes and can be split apart. */
+export const sceneClassNamesAtom = atom<string[]>([]);

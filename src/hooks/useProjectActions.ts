@@ -10,11 +10,16 @@ import {
   recentProjectsAtom,
   renderQualityAtom,
   renderStateAtom,
+  sceneClassNamesAtom,
   sceneCodeAtom,
   type ProjectInfo,
   type RenderQuality,
 } from "@/atoms/projects";
 import { projectApi, TAURI_REQUIRED_MESSAGE } from "@/lib/project";
+
+function sameClasses(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((name, index) => name === b[index]);
+}
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -31,6 +36,7 @@ export function useProjectActions() {
   const [quality, setQuality] = useAtom(renderQualityAtom);
   const [renderState, setRenderState] = useAtom(renderStateAtom);
   const [recents, setRecents] = useAtom(recentProjectsAtom);
+  const [, setSceneClasses] = useAtom(sceneClassNamesAtom);
 
   const remember = (info: ProjectInfo) => {
     const entry = {
@@ -198,6 +204,37 @@ export function useProjectActions() {
     }
   };
 
+  /** The scene classes the active file declares, so the UI can tell whether a
+   *  file is really several scenes. */
+  const loadSceneClasses = useCallback(
+    async (scene: string, info: ProjectInfo) => {
+      try {
+        const classes = await projectApi.sceneClasses(info.path, scene);
+        setSceneClasses((prev) => (sameClasses(prev, classes) ? prev : classes));
+      } catch {
+        setSceneClasses([]);
+      }
+    },
+    [setSceneClasses],
+  );
+
+  const splitScene = async (scene: string = activeScene!) => {
+    if (!project || !scene) return;
+    try {
+      const result = await projectApi.splitScene(project.path, scene);
+      setProject({ ...project, scenes: result.scenes });
+      await loadSceneClasses(scene, project);
+      const parts = [
+        `${result.created.length} scene file${result.created.length === 1 ? "" : "s"} created`,
+        result.existing.length > 0 ? `${result.existing.length} already existed` : null,
+        `${scene}.py was left in place`,
+      ].filter(Boolean);
+      toast.success(`Split ${scene}.py`, { description: parts.join(" · ") });
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  };
+
   const render = async (scene: string = activeScene!, level: RenderQuality = quality) => {
     if (!project || !scene) return;
     setRenderState({ status: "running", log: "Rendering…", video: null, scene });
@@ -256,6 +293,8 @@ export function useProjectActions() {
     saveScene,
     createScene,
     deleteScene,
+    splitScene,
+    loadSceneClasses,
     showLastRender,
     render,
     reveal,
