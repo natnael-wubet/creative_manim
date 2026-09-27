@@ -3,7 +3,7 @@
 import { useEffect, useState, type FC } from "react";
 import { motion } from "motion/react";
 import { IoMoon, IoMoonOutline, IoSunny, IoSunnyOutline } from "react-icons/io5";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/useTheme";
 
 /* --- Props --- */
 interface SwitchModeProps {
@@ -18,17 +18,17 @@ interface SwitchModeProps {
 }
 
 export const SwitchMode: FC<SwitchModeProps> = ({
-    width = 144,
-    height = 72,
-    darkColor = "#0B0B0B",
-    lightColor = "#FFFFFF",
-    knobDarkColor = "#2A2A2E",
-    knobLightColor = "#F3F2F7",
-    borderDarkColor = "#4C4C50",
-    borderLightColor = "#D8D6E0",
+    width = 108,
+    height = 54,
+    darkColor = "var(--card)",
+    lightColor = "var(--background)",
+    knobDarkColor = "var(--muted)",
+    knobLightColor = "var(--card)",
+    borderDarkColor = "var(--border)",
+    borderLightColor = "var(--border)",
 }) => {
     const [mounted, setMounted] = useState(false);
-    const { resolvedTheme, setTheme } = useTheme();
+    const { theme, toggleTheme } = useTheme();
 
     useEffect(() => {
         requestAnimationFrame(() => setMounted(true));
@@ -38,13 +38,18 @@ export const SwitchMode: FC<SwitchModeProps> = ({
         return <div style={{ width, height }} className="rounded-full border-2 border-transparent" />;
     }
 
-    const isDark = resolvedTheme === "dark";
+    const isDark = theme === "dark";
     const iconSize = height * 0.45;
 
     return (
         <motion.button
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            className="relative flex items-center rounded-full border-2 transition-colors"
+            onClick={toggleTheme}
+            type="button"
+            role="switch"
+            aria-checked={isDark}
+            aria-label="Toggle dark mode"
+            title={isDark ? "Switch to light theme" : "Switch to dark theme"}
+            className="text-foreground relative flex cursor-pointer items-center rounded-full border-2 transition-colors"
             style={{
                 width,
                 height,
@@ -83,16 +88,16 @@ export const SwitchMode: FC<SwitchModeProps> = ({
             >
                 {isDark ? (
                     <IoSunnyOutline
-                        color="#8A8A8F"
-                        fill="#8A8A8F"
-                        stroke="#8A8A8F"
+                        color="currentColor"
+                        fill="currentColor"
+                        stroke="currentColor"
                         style={{ width: iconSize, height: iconSize }}
                         className="transition-colors duration-200"
                     />
                 ) : (
                     <IoSunny
-                        color="#686771"
-                        fill="#686771"
+                        color="currentColor"
+                        fill="currentColor"
                         style={{ width: iconSize, height: iconSize }}
                         className="transition-colors duration-200"
                     />
@@ -108,16 +113,16 @@ export const SwitchMode: FC<SwitchModeProps> = ({
             >
                 {isDark ? (
                     <IoMoon
-                        color="#F4F4FB"
-                        fill="#F4F4FB"
+                        color="currentColor"
+                        fill="currentColor"
                         style={{ width: iconSize, height: iconSize }}
                         className="transition-colors duration-200"
                     />
                 ) : (
                     <IoMoonOutline
-                        color="#ABABB4"
-                        fill="#ABABB4"
-                        stroke="#ABABB4"
+                        color="currentColor"
+                        fill="currentColor"
+                        stroke="currentColor"
                         style={{ width: iconSize, height: iconSize }}
                         className="transition-colors duration-200"
                     />

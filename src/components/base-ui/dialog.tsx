@@ -3,7 +3,7 @@ import { cn } from "@/components/base-ui/utils"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
-import { Button } from "@/components/watermelon/button"
+import { Button } from "@/components/base-ui/button"
 
 function Dialog({
   ...props
