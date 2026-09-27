@@ -579,7 +579,10 @@ fn combiner_source(scenes: &[String]) -> String {
     for name in &names {
         out.push_str(&format!("            {name},\n"));
     }
-    out.push_str("        ):\n            scene_cls().construct(self)\n");
+    // The unbound function, handed this scene as `self`. Instantiating the
+    // class instead would either pass a second argument to a bound method or
+    // render into a throwaway scene that never reaches this file.
+    out.push_str("        ):\n            scene_cls.construct(self)\n");
     out
 }
 
@@ -1084,6 +1087,7 @@ class Body(Scene):
     }
 
 
+
     #[test]
     fn an_added_scene_starts_empty_rather_than_with_the_demo_animation() {
         let root = temp_dir("new-scene");
@@ -1111,6 +1115,10 @@ class Body(Scene):
         assert!(combined.contains("            ScenePart0,"), "{combined}");
         assert!(combined.contains("            CombinedPart1,"), "{combined}");
         assert!(combined.contains("            Body,"), "{combined}");
+        // A bound method would take a second argument, and a throwaway instance
+        // would render to a file nobody is watching.
+        assert!(combined.contains("            scene_cls.construct(self)"), "{combined}");
+        assert!(!combined.contains("scene_cls().construct"), "{combined}");
     }
 
     #[test]
