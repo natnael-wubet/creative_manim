@@ -285,6 +285,37 @@ fn newest_video(media_dir: &Path) -> Option<String> {
         .map(|(_, path)| path.to_string_lossy().into_owned())
 }
 
+/// Manim writes the `moov` atom at the end of the file, so the webview has to
+/// pull the whole thing before it can play. Remuxing is a stream copy, costs
+/// nothing, and leaves the index up front. A missing ffmpeg is not fatal.
+fn remux_faststart(video: &str) {
+    let path = Path::new(video);
+    let staged = path.with_extension("mp4.faststart");
+
+    let result = Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-i"])
+        .arg(path)
+        .args(["-c", "copy", "-movflags", "+faststart"])
+        // The staged name has no mp4 extension, so the format cannot be inferred.
+        .args(["-f", "mp4"])
+        .arg(&staged)
+        .output();
+
+    match result {
+        Ok(output) if output.status.success() => {
+            if fs::rename(&staged, path).is_ok() {
+                return;
+            }
+        }
+        Ok(output) => {
+            eprintln!("ffmpeg could not remux: {}", String::from_utf8_lossy(&output.stderr));
+        }
+        Err(e) => eprintln!("ffmpeg is unavailable, skipping the remux: {e}"),
+    }
+
+    let _ = fs::remove_file(&staged);
+}
+
 #[tauri::command]
 pub fn render_scene(
     project_path: String,
@@ -332,7 +363,11 @@ pub fn render_scene(
 
     let ok = output.status.success();
     let video = if ok {
-        newest_video(&Path::new(&project_path).join("media"))
+        let found = newest_video(&Path::new(&project_path).join("media"));
+        if let Some(path) = &found {
+            remux_faststart(path);
+        }
+        found
     } else {
         None
     };
@@ -413,6 +448,24 @@ mod tests {
         assert!(video.ends_with("BlankCanvas.mp4"), "unexpected video path: {video}");
         assert!(!video.contains("partial_movie_files"));
 
+        // The remux must leave the index in front of the media data, otherwise
+        // the webview has to buffer the whole file before the first frame.
+        let bytes = fs::read(&video).unwrap();
+        let head = &bytes[..bytes.len().min(1 << 20)];
+        let mdat = find(head, b"mdat");
+        let moov = find(head, b"moov");
+        assert!(moov.is_some(), "no moov atom in {video}");
+        assert!(
+            mdat.is_none() || moov < mdat,
+            "expected moov before mdat, got moov at {moov:?} and mdat at {mdat:?}"
+        );
+
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
     }
 }
