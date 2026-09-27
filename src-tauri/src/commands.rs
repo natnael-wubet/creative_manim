@@ -19,6 +19,13 @@ pub struct RenderResult {
     pub video: Option<String>,
 }
 
+#[derive(Serialize, Debug)]
+pub struct SplitResult {
+    pub created: Vec<String>,
+    pub existing: Vec<String>,
+    pub scenes: Vec<String>,
+}
+
 fn sanitize_folder(name: &str) -> String {
     name.replace(|c: char| !c.is_alphanumeric() && c != ' ' && c != '-' && c != '_', "")
         .trim()
@@ -305,6 +312,207 @@ pub fn delete_scene(project_path: String, scene: String) -> Result<Vec<String>, 
         fs::remove_file(&file).map_err(|e| e.to_string())?;
     }
     Ok(list_scenes(Path::new(&project_path)))
+}
+
+/// A top-level class in a scene file, with the line range it occupies.
+struct ClassBlock {
+    name: String,
+    bases: Vec<String>,
+    start: usize,
+    end: usize,
+}
+
+/// Whether a line begins a new top-level construct, ending a class body.
+fn starts_top_level(line: &str) -> bool {
+    let trimmed = line.trim();
+    // Blank lines and comments never end a class body: a comment run belongs to
+    // whatever follows it, and is picked up by the next block's start.
+    if trimmed.is_empty() || trimmed.starts_with('#') {
+        return false;
+    }
+    !line.starts_with([' ', '\t'])
+}
+
+/// Every top-level class in a scene file, in source order.
+///
+/// This is a line scan, not a parse. It only has to be good enough to cut a file
+/// into pieces that each still run under manim, so a top-level `class` line ends
+/// at the next top-level statement and the comment lines directly above a class
+/// travel with it.
+fn top_level_classes(source: &str) -> Vec<ClassBlock> {
+    let lines: Vec<&str> = source.lines().collect();
+    let mut blocks: Vec<ClassBlock> = Vec::new();
+    let mut index = 0;
+
+    while index < lines.len() {
+        let Some(header) = lines[index].strip_prefix("class ") else {
+            index += 1;
+            continue;
+        };
+        let header = header.trim_end();
+        let name = header
+            .split(['(', ':', ' '])
+            .next()
+            .unwrap_or_default()
+            .to_string();
+        let bases = match header.split_once('(') {
+            Some((_, tail)) => tail
+                .split_once(')')
+                .map(|(inner, _)| {
+                    inner
+                        .split(',')
+                        .filter_map(|base| {
+                            // `class Foo(Scene, camera_config=...)`
+                            let base = base.split('=').next().unwrap_or("").trim();
+                            (!base.is_empty()).then(|| base.to_string())
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            None => Vec::new(),
+        };
+
+        let mut end = index + 1;
+        while end < lines.len() && !starts_top_level(lines[end]) {
+            end += 1;
+        }
+
+        let mut start = index;
+        while start > 0 && lines[start - 1].trim_start().starts_with('#') {
+            start -= 1;
+        }
+
+        blocks.push(ClassBlock {
+            name,
+            bases,
+            start,
+            end,
+        });
+        index = end.max(index + 1);
+    }
+
+    blocks
+}
+
+/// The names of the classes in a file that are manim scenes.
+///
+/// A class counts when it derives from something that looks like a scene, which
+/// covers `Scene`, a project's own `ChapterScene`, and a chain of local bases
+/// ending at one. Everything else is a helper and stays where it is.
+fn scene_class_names(blocks: &[ClassBlock]) -> Vec<String> {
+    let mut scenes: Vec<String> = Vec::new();
+    loop {
+        let mut found = false;
+        for block in blocks {
+            if scenes.contains(&block.name) {
+                continue;
+            }
+            let is_scene = block.bases.iter().any(|base| {
+                base.to_ascii_lowercase().contains("scene")
+                    || scenes.iter().any(|scene| scene == base)
+            });
+            if is_scene {
+                scenes.push(block.name.clone());
+                found = true;
+            }
+        }
+        if !found {
+            return scenes;
+        }
+    }
+}
+
+/// The scene classes a scene file declares, so the UI can offer to split it.
+#[tauri::command]
+pub fn scene_classes(project_path: String, scene: String) -> Result<Vec<String>, String> {
+    let file = scene_file(&project_path, &scene)?;
+    if !file.exists() {
+        return Ok(Vec::new());
+    }
+    let source = fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    Ok(scene_class_names(&top_level_classes(&source)))
+}
+
+/// Writes one scene class per file, for a file that declares several.
+///
+/// A scene is a single class as far as this app is concerned, so a file holding
+/// `class Intro`, `class Body` and `class Outro` can only ever render one of
+/// them. Each output keeps the module preamble (imports, constants) and any
+/// helper class, because a scene that needs them has to still run on its own.
+/// The original file is left alone; deleting it is the user's call.
+#[tauri::command]
+pub fn split_scene(project_path: String, scene: String) -> Result<SplitResult, String> {
+    let stem = scene.trim().to_string();
+    let file = scene_file(&project_path, &stem)?;
+    let source = fs::read_to_string(&file)
+        .map_err(|_| format!("Scene file not found: {}", file.display()))?;
+    let lines: Vec<&str> = source.lines().collect();
+    let blocks = top_level_classes(&source);
+    let scenes = scene_class_names(&blocks);
+
+    if scenes.len() < 2 {
+        return Err(if scenes.is_empty() {
+            format!("{stem}.py declares no scene class.")
+        } else {
+            format!("{stem}.py only declares {}, so there is nothing to split.", scenes[0])
+        });
+    }
+
+    let scenes_dir = Path::new(&project_path).join("scenes");
+    let mut created = Vec::new();
+    let mut existing = Vec::new();
+
+    for target in &scenes {
+        let dest = scenes_dir.join(format!("{target}.py"));
+        if dest.exists() {
+            existing.push(target.clone());
+            continue;
+        }
+
+        // Walk the file in source order, keeping everything except the other
+        // scene classes, so the piece reads like the original.
+        let mut kept: Vec<&str> = Vec::new();
+        let mut cursor = 0;
+        for block in &blocks {
+            if block.start > cursor {
+                kept.extend_from_slice(&lines[cursor..block.start]);
+            }
+            cursor = block.end;
+            if !scenes.contains(&block.name) || block.name == *target {
+                kept.extend_from_slice(&lines[block.start..block.end]);
+            }
+        }
+        if cursor < lines.len() {
+            kept.extend_from_slice(&lines[cursor..]);
+        }
+
+        // Removing a class can leave a gap where its two blank lines were.
+        let mut body: Vec<&str> = Vec::with_capacity(kept.len());
+        let mut blanks = 0;
+        for line in kept {
+            if line.trim().is_empty() {
+                blanks += 1;
+                if blanks > 2 {
+                    continue;
+                }
+            } else {
+                blanks = 0;
+            }
+            body.push(line);
+        }
+        while body.last().is_some_and(|line| line.trim().is_empty()) {
+            body.pop();
+        }
+
+        fs::write(&dest, format!("{}\n", body.join("\n"))).map_err(|e| e.to_string())?;
+        created.push(target.clone());
+    }
+
+    Ok(SplitResult {
+        created,
+        existing,
+        scenes: list_scenes(Path::new(&project_path)),
+    })
 }
 
 /// True unless the `moov` atom already sits in front of the media data. Only
@@ -766,5 +974,154 @@ mod tests {
         assert!(needs_faststart(&path));
         assert!(!needs_faststart(&root.join("missing.mp4")));
         fs::remove_dir_all(&root).unwrap();
+    }
+
+
+    #[test]
+    fn splits_a_multi_scene_file_into_one_file_per_class() {
+        let root = temp_dir("split");
+        let info = create_project("Split".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let scenes = Path::new(&info.path).join("scenes");
+        fs::write(
+            scenes.join("chapter.py"),
+            r#"from manim import *
+
+WIDTH = 3
+
+
+def helper():
+    return 1
+
+
+class Title(Scene):
+    def construct(self):
+        self.wait()
+
+
+# a comment that belongs to the next class
+class Body(ChapterScene):
+    def construct(self):
+        self.wait()
+
+
+class Outro(Scene):
+    def construct(self):
+        self.wait()
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(scene_classes(info.path.clone(), "chapter".into()).unwrap(), vec!["Title", "Body", "Outro"]);
+
+        let result = split_scene(info.path.clone(), "chapter".into()).unwrap();
+        assert_eq!(result.created, vec!["Title", "Body", "Outro"]);
+        assert!(result.existing.is_empty());
+        // The original is left for the user to remove.
+        assert!(scenes.join("chapter.py").exists());
+
+        let body = fs::read_to_string(scenes.join("Body.py")).unwrap();
+        // The preamble and the helper survive, so the piece still runs.
+        assert!(body.contains("from manim import *"));
+        assert!(body.contains("WIDTH = 3"));
+        assert!(body.contains("def helper():"));
+        // The comment above the class travelled with it.
+        assert!(body.contains("# a comment that belongs to the next class"));
+        // And only the one scene class is in there.
+        assert!(body.contains("class Body(ChapterScene):"));
+        assert!(!body.contains("class Title("));
+        assert!(!body.contains("class Outro("));
+
+        let title = fs::read_to_string(scenes.join("Title.py")).unwrap();
+        assert!(title.contains("class Title(Scene):"));
+        assert!(!title.contains("class Body("));
+
+        // The scene list now offers each one separately.
+        let listed = open_project(info.path.clone()).unwrap();
+        for name in ["Title", "Body", "Outro"] {
+            assert!(listed.scenes.contains(&name.to_string()), "missing {name}");
+        }
+
+        // Every piece has to be valid python on its own.
+        for name in ["Title", "Body", "Outro"] {
+            let path = scenes.join(format!("{name}.py"));
+            let output = Command::new("python3")
+                .args(["-c", "import ast,sys;ast.parse(open(sys.argv[1]).read())"])
+                .arg(&path)
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{name}.py does not parse: {}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn will_not_clobber_a_scene_that_already_exists() {
+        let root = temp_dir("split-existing");
+        let info = create_project("Split".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let scenes = Path::new(&info.path).join("scenes");
+        fs::write(
+            scenes.join("chapter.py"),
+            "from manim import *\n\n\nclass Title(Scene):\n    pass\n\n\nclass Outro(Scene):\n    pass\n",
+        )
+        .unwrap();
+        fs::write(scenes.join("Outro.py"), "# hand written, do not touch\n").unwrap();
+
+        let result = split_scene(info.path.clone(), "chapter".into()).unwrap();
+        assert_eq!(result.created, vec!["Title"]);
+        assert_eq!(result.existing, vec!["Outro"]);
+        assert_eq!(
+            fs::read_to_string(scenes.join("Outro.py")).unwrap(),
+            "# hand written, do not touch\n"
+        );
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn refuses_to_split_a_file_that_is_already_one_scene() {
+        let root = temp_dir("split-single");
+        let info = create_project("Split".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let scenes = Path::new(&info.path).join("scenes");
+        fs::write(scenes.join("only.py"), "from manim import *\n\n\nclass Only(Scene):\n    pass\n").unwrap();
+
+        assert_eq!(scene_classes(info.path.clone(), "only".into()).unwrap(), vec!["Only"]);
+        let err = split_scene(info.path.clone(), "only".into()).unwrap_err();
+        assert!(err.contains("nothing to split"), "unexpected error: {err}");
+
+        // A helper on its own is not a scene file either.
+        fs::write(scenes.join("helper.py"), "def go():\n    pass\n").unwrap();
+        assert!(scene_classes(info.path.clone(), "helper".into()).unwrap().is_empty());
+        assert!(split_scene(info.path.clone(), "helper".into()).is_err());
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn follows_a_chain_of_local_bases_to_find_scenes() {
+        // Rooted at a scene, so everything hanging off it is one too.
+        let source = r#"class Base(Scene):
+    pass
+
+
+class Middle(Base):
+    pass
+
+
+class Real(Middle):
+    pass
+"#;
+        let blocks = top_level_classes(source);
+        assert_eq!(scene_class_names(&blocks), vec!["Base", "Middle", "Real"]);
+
+        // Rooted at something else, nothing in the chain is a scene.
+        let unrelated = r#"class Layer:
+    pass
+
+
+class Middle(Layer):
+    pass
+"#;
+        assert!(scene_class_names(&top_level_classes(unrelated)).is_empty());
     }
 }

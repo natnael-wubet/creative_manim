@@ -4,7 +4,7 @@ pub mod media;
 
 use commands::{
     create_project, create_scene, delete_scene, latest_render, open_path, open_project, read_scene,
-    render_scene, save_scene,
+    render_scene, save_scene, scene_classes, split_scene,
 };
 use media::MediaServer;
 use std::sync::Arc;
@@ -22,6 +22,8 @@ pub fn run() {
             save_scene,
             create_scene,
             delete_scene,
+            scene_classes,
+            split_scene,
             render_scene,
             latest_render,
             open_path,
