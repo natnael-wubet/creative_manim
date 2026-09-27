@@ -59,6 +59,13 @@ export const projectApi = {
     return invoke<RenderResult>("render_scene", { projectPath, scene, quality });
   },
 
+  /** Loopback URL for a rendered video. The asset protocol cannot play video on
+   *  WebKitGTK, so the preview streams over http instead. */
+  media: (path: string) => {
+    assertTauri();
+    return invoke<string>("media_url", { path });
+  },
+
   reveal: (path: string) => {
     assertTauri();
     return invoke<void>("open_path", { path });

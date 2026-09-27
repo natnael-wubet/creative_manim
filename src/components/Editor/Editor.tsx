@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { Alert02Icon, PlayIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -11,6 +10,7 @@ import { ScrollArea } from "@/components/base-ui/scroll-area";
 import { Separator as Divider } from "@/components/base-ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base-ui/tabs";
 import CodeEditor from "@/components/CodeEditor/CodeEditor";
+import VideoPlayer from "@/components/Editor/VideoPlayer";
 import { useProjectActions } from "@/hooks/useProjectActions";
 import { isTauri } from "@/lib/project";
 
@@ -92,12 +92,7 @@ function Editor() {
 
             <TabsContent value="preview" className="min-h-0 flex-1 p-3">
               {renderState.video && isTauri() ? (
-                <video
-                  key={renderState.video}
-                  src={convertFileSrc(renderState.video)}
-                  controls
-                  className="aspect-video w-full rounded-md bg-black"
-                />
+                <VideoPlayer path={renderState.video} onReveal={reveal} />
               ) : (
                 <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border text-center">
                   <HugeiconsIcon
