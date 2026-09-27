@@ -84,7 +84,7 @@ function Editor() {
                 <TabsTrigger value="preview">Preview</TabsTrigger>
                 <TabsTrigger value="console">Console</TabsTrigger>
               </TabsList>
-              <Button size="sm" onClick={() => render()}>
+              <Button size="sm" disabled={!isTauri()} onClick={() => render()}>
                 <HugeiconsIcon icon={PlayIcon} className="size-4" />
                 Render
               </Button>

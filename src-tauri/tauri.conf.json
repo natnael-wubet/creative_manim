@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "creative_manim",
+  "productName": "Manim Studio",
   "version": "0.1.0",
   "identifier": "com.naty.creative_manim",
   "build": {
@@ -12,14 +12,23 @@
   "app": {
     "windows": [
       {
-        "title": "creative_manim",
-        "width": 800,
-        "height": 600
+        "title": "Manim Studio",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 600
       }
     ],
     "security": {
-      "csp": null
-    }
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      }
+    },
+    "withGlobalTauri": false
   },
   "bundle": {
     "active": true,

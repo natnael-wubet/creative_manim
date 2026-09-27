@@ -9,6 +9,7 @@ import { Button } from "@/components/base-ui/button";
 import { Badge } from "@/components/base-ui/badge";
 import { SwitchMode } from "@/components/watermelon/switch-mode";
 import { useProjectActions } from "@/hooks/useProjectActions";
+import { isTauri } from "@/lib/project";
 
 export function TopBar() {
   const { project, isEditing, isDirty, saveScene, render, reveal, closeProject, pickProject } =
@@ -51,6 +52,7 @@ export function TopBar() {
               variant="ghost"
               size="icon-sm"
               aria-label="Reveal project folder"
+              disabled={!isTauri()}
               onClick={() => reveal(project.path)}
             >
               <HugeiconsIcon icon={Folder01Icon} className="size-4" />
@@ -59,18 +61,24 @@ export function TopBar() {
               variant="outline"
               size="sm"
               onClick={() => saveScene()}
-              disabled={!isDirty}
+              disabled={!isDirty || !isTauri()}
             >
               <HugeiconsIcon icon={SaveIcon} className="size-4" />
               {isDirty ? "Save" : "Saved"}
             </Button>
-            <Button size="sm" onClick={() => render()}>
+            <Button size="sm" disabled={!isTauri()} onClick={() => render()}>
               <HugeiconsIcon icon={PlayIcon} className="size-4" />
               Render
             </Button>
           </>
         ) : (
-          <Button variant="outline" size="sm" onClick={pickProject}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!isTauri()}
+            title={isTauri() ? undefined : "Run pnpm tauri dev to open folders"}
+            onClick={pickProject}
+          >
             <HugeiconsIcon icon={Folder01Icon} className="size-4" />
             Open project
           </Button>

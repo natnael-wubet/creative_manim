@@ -19,6 +19,7 @@ import {
 import { MacOSSidebar } from "@/components/watermelon/macos-sidebar";
 import { newProjectModalOpenAtom } from "@/atoms/projects";
 import { useProjectActions } from "@/hooks/useProjectActions";
+import { isTauri } from "@/lib/project";
 
 const SECTIONS = ["Scenes", "Assets", "Output"] as const;
 
@@ -58,7 +59,11 @@ export function AppSidebar() {
       className="h-full"
     >
       <div className="flex h-full flex-col gap-4 pr-2 pb-4">
-        <Button className="mt-4 w-full" onClick={() => setNewProjectOpen(true)}>
+        <Button
+          className="mt-4 w-full"
+          disabled={!isTauri()}
+          onClick={() => setNewProjectOpen(true)}
+        >
           <HugeiconsIcon icon={PlusSignIcon} className="size-4" />
           New project
         </Button>
