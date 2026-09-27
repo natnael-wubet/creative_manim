@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { useAtomValue } from "jotai";
-import { applyThemeToDocument, resolvedThemeAtom } from "@/atoms/theme";
+import { useAtomValue, useSetAtom } from "jotai";
+import { applyThemeToDocument, resolvedThemeAtom, systemThemeAtom } from "@/atoms/theme";
 
 export function ThemeSync() {
   const theme = useAtomValue(resolvedThemeAtom);
+  const setSystemTheme = useSetAtom(systemThemeAtom);
 
   useEffect(() => {
     applyThemeToDocument(theme);
@@ -11,7 +12,7 @@ export function ThemeSync() {
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyThemeToDocument(theme);
+    const onChange = () => setSystemTheme(media.matches ? "dark" : "light");
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, [theme]);

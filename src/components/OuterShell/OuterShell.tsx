@@ -1,69 +1,23 @@
-import { AppShell, Burger } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
 import { Outlet } from "react-router";
-import { Film, Settings } from "lucide-react";
-import SideBarOptions from "./SideBarOptions/SideBarOptions";
-import { ThemeToggleButton } from "../ToggleThemeButton";
+import { ThemeSync } from "@/components/ThemeSync";
+import { AppSidebar } from "./AppSidebar";
+import { TopBar } from "./TopBar";
 
-const OuterShell: React.FC = () => {
-	const [opened, { toggle }] = useDisclosure();
-
-	return (
-		<AppShell
-			padding="md"
-			header={{ height: 60 }}
-			navbar={{
-				width: 280,
-				breakpoint: "sm",
-				collapsed: { mobile: !opened },
-			}}
-		>
-			{/* ── Header ── */}
-			<AppShell.Header className="flex items-center px-4 border-b border-border bg-gradient-to-r from-sidebar via-background to-background">
-				<Burger
-					opened={opened}
-					onClick={toggle}
-					hiddenFrom="sm"
-					size="sm"
-					className="mr-3"
-				/>
-				<div className="flex items-center gap-3">
-					<div className="flex items-center justify-center w-8 h-8  shadow-md shadow-violet-500/20">
-						<Film size={18} className="" />
-					</div>
-					<div className="flex flex-col leading-tight">
-						<span className="text-sm font-semibold tracking-tight text-foreground">
-							Manim Studio
-						</span>
-						<span className="text-[10px] text-muted-foreground tracking-wide uppercase">
-							Creative Animation
-						</span>
-					</div>
-				</div>
-
-				<div className="ml-auto flex items-center gap-2">
-				</div>
-				<div className="ml-auto flex items-center gap-2">
-
-					<ThemeToggleButton />
-					<button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md transition-colors duration-200">
-						<Settings size={14} />
-						<span className="hidden sm:inline">Settings</span>
-					</button>
-				</div>
-			</AppShell.Header>
-
-			{/* ── Navbar ── */}
-			<AppShell.Navbar className="bg-sidebar border-r border-sidebar-border">
-				<SideBarOptions />
-			</AppShell.Navbar>
-
-			{/* ── Main ── */}
-			<AppShell.Main className="bg-background">
-				<Outlet />
-			</AppShell.Main>
-		</AppShell>
-	);
-};
+function OuterShell() {
+  return (
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
+      <ThemeSync />
+      <TopBar />
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-[520px] shrink-0 p-2 lg:block">
+          <AppSidebar />
+        </aside>
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
 
 export default OuterShell;

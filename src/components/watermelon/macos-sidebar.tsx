@@ -9,6 +9,8 @@ export interface MacOSSidebarProps {
   items: string[];
   defaultOpen?: boolean;
   initialSelectedIndex?: number;
+  selectedIndex?: number;
+  onSelect?: (item: string, index: number) => void;
   children?: ReactNode;
   className?: string;
 }
@@ -17,17 +19,26 @@ export function MacOSSidebar({
   items,
   defaultOpen = true,
   initialSelectedIndex = 0,
+  selectedIndex: controlledSelectedIndex,
+  onSelect,
   children,
   className = "",
 }: MacOSSidebarProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [selectedIndex, setSelectedIndex] =
+  const [internalSelectedIndex, setInternalSelectedIndex] =
     useState<number>(initialSelectedIndex);
   const [isOpen, setIsOpen] = useState<boolean>(defaultOpen);
 
+  const selectedIndex = controlledSelectedIndex ?? internalSelectedIndex;
+
+  const select = (index: number) => {
+    setInternalSelectedIndex(index);
+    onSelect?.(items[index], index);
+  };
+
   return (
     <div
-      className={`flex bg-neutral-200 dark:bg-neutral-900 rounded-3xl p-3 relative w-full sm:min-w-[480px] overflow-hidden ${className}`}
+      className={`flex bg-sidebar rounded-3xl p-3 relative w-full min-w-0 overflow-hidden ${className}`}
     >
       <motion.div
         animate={{
@@ -35,13 +46,13 @@ export function MacOSSidebar({
         }}
         transition={{ type: "spring", bounce: 0.4, duration: 0.8 }}
         className={`p-2 rounded-2xl shrink-0 flex flex-col items-start transition-colors duration-900 ease-out ${
-          isOpen ? "bg-neutral-100 dark:bg-neutral-800" : "bg-transparent"
+          isOpen ? "bg-sidebar-accent" : "bg-transparent"
         }`}
       >
         <div
           className={`flex items-center w-full ${
             isOpen ? "justify-end gap-4" : "justify-center"
-          } text-neutral-700 dark:text-neutral-300 p-2 shrink-0`}
+          } text-sidebar-foreground p-2 shrink-0`}
         >
           <AnimatePresence>
             {isOpen && (
@@ -85,12 +96,12 @@ export function MacOSSidebar({
                   key={item}
                   className="relative cursor-pointer"
                   onMouseEnter={() => setHoveredIndex(index)}
-                  onClick={() => setSelectedIndex(index)}
+                  onClick={() => select(index)}
                 >
                   <AnimatePresence>
                     {selectedIndex === index && (
                       <motion.div
-                        className="absolute inset-0 z-0 bg-neutral-200 dark:bg-neutral-700 rounded-md"
+                        className="absolute inset-0 z-0 bg-sidebar-accent rounded-md"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -101,8 +112,8 @@ export function MacOSSidebar({
                   <p
                     className={`relative z-10 px-5 py-3 tracking-tight ${
                       selectedIndex === index
-                        ? "text-neutral-900 dark:text-neutral-100 font-medium"
-                        : "text-neutral-700 dark:text-neutral-200/50"
+                        ? "text-sidebar-accent-foreground font-medium"
+                        : "text-sidebar-foreground/60"
                     }`}
                   >
                     {item}
@@ -111,7 +122,7 @@ export function MacOSSidebar({
                     {hoveredIndex === index && selectedIndex !== index && (
                       <motion.span
                         layoutId="sidebar-hover-bg"
-                        className="absolute inset-0 z-0 bg-neutral-200/50 dark:bg-neutral-900/50 rounded-md"
+                        className="absolute inset-0 z-0 bg-sidebar-accent/60 rounded-md"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -130,7 +141,7 @@ export function MacOSSidebar({
         </AnimatePresence>
       </motion.div>
 
-      <div className="flex-1 w-full h-full min-h-full overflow-y-auto z-0 pl-4 lg:pl-8">
+      <div className="flex-1 w-full h-full min-h-0 overflow-y-auto z-0 pl-4 lg:pl-8">
         {children}
       </div>
     </div>

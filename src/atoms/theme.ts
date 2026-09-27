@@ -11,16 +11,17 @@ export const themePreferenceAtom = atomWithStorage<ThemePreference>(
   "system",
 );
 
-const systemPrefersDark = () =>
+const getSystemTheme = (): ResolvedTheme =>
   typeof window !== "undefined" &&
-  window.matchMedia("(prefers-color-scheme: dark)").matches;
+  window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+
+export const systemThemeAtom = atom<ResolvedTheme>(getSystemTheme());
 
 export const resolvedThemeAtom = atom<ResolvedTheme>((get) => {
   const preference = get(themePreferenceAtom);
-  if (preference === "system") {
-    return systemPrefersDark() ? "dark" : "light";
-  }
-  return preference;
+  return preference === "system" ? get(systemThemeAtom) : preference;
 });
 
 export function applyThemeToDocument(theme: ResolvedTheme) {

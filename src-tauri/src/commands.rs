@@ -158,14 +158,14 @@ pub fn create_project(
     )
     .map_err(|e| e.to_string())?;
 
-    let main_scene = project_dir.join("scenes").join("main.py");
+    let class_name = match template.as_str() {
+        "math" => "Mathematics",
+        "physics" => "Physics",
+        "code" => "CodeAnimation",
+        _ => "BlankCanvas",
+    };
+    let main_scene = project_dir.join("scenes").join(format!("{}.py", class_name));
     if !main_scene.exists() {
-        let class_name = match template.as_str() {
-            "math" => "Mathematics",
-            "physics" => "Physics",
-            "code" => "CodeAnimation",
-            _ => "BlankCanvas",
-        };
         fs::write(&main_scene, template_code(class_name)).map_err(|e| e.to_string())?;
     }
 
@@ -302,7 +302,10 @@ pub fn render_scene(
     let script = format!("scenes/{}.py", class_name);
     let script_path = Path::new(&project_path).join(&script);
     if !script_path.exists() {
-        return Err(format!("Save the scene before rendering: {}", script));
+        return Err(format!(
+            "Scene {class_name} has no file at {script}. Available: {}",
+            list_scenes(Path::new(&project_path)).join(", ")
+        ));
     }
 
     let output = Command::new("manim")
@@ -340,4 +343,76 @@ pub fn render_scene(
 #[tauri::command]
 pub fn open_path(path: String) -> Result<(), String> {
     tauri_plugin_opener::open_path(path, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("manim-studio-test-{name}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn sanitizes_names() {
+        assert_eq!(sanitize_folder("My Project!"), "My Project");
+        assert_eq!(sanitize_class("my scene"), "MyScene");
+        assert_eq!(sanitize_class("3d intro"), "S3dIntro");
+        assert_eq!(sanitize_class("   "), "Scene");
+    }
+
+    #[test]
+    fn creates_reads_saves_and_deletes_scenes() {
+        let root = temp_dir("crud");
+        let info = create_project("Demo".into(), "math".into(), root.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(info.name, "Demo");
+        assert_eq!(info.scenes, vec!["Mathematics".to_string()]);
+
+        let code = read_scene(info.path.clone(), "Mathematics".into()).unwrap();
+        assert!(code.contains("class Mathematics(Scene):"));
+
+        save_scene(info.path.clone(), "Mathematics".into(), "# edited\n".into()).unwrap();
+        assert_eq!(read_scene(info.path.clone(), "Mathematics".into()).unwrap(), "# edited\n");
+
+        let scenes = create_scene(info.path.clone(), "outro".into()).unwrap();
+        assert_eq!(scenes, vec!["Mathematics".to_string(), "Outro".to_string()]);
+        assert!(create_scene(info.path.clone(), "outro".into()).is_err());
+
+        assert_eq!(delete_scene(info.path.clone(), "outro".into()).unwrap(), vec!["Mathematics".to_string()]);
+
+        let reopened = open_project(info.path.clone()).unwrap();
+        assert_eq!(reopened.name, "Demo");
+        assert_eq!(reopened.template, "math");
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn rejects_empty_project_name() {
+        let root = temp_dir("invalid");
+        assert!(create_project("!!!".into(), "blank".into(), root.to_string_lossy().into_owned()).is_err());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn missing_project_is_an_error() {
+        assert!(open_project("/definitely/not/a/project".into()).is_err());
+    }
+
+    #[test]
+    fn renders_a_scene_with_manim() {
+        let root = temp_dir("render");
+        let info = create_project("Render".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let result = render_scene(info.path.clone(), "BlankCanvas".into(), "low".into()).unwrap();
+
+        assert!(result.ok, "manim failed:\n{}", result.output);
+        let video = result.video.expect("render produced no video");
+        assert!(video.ends_with("BlankCanvas.mp4"), "unexpected video path: {video}");
+        assert!(!video.contains("partial_movie_files"));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
 }

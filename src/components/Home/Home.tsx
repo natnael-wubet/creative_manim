@@ -1,219 +1,144 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // Motion Primitives
-import { Button, Title, Text, Container, Group, Paper, Stack } from "@mantine/core";
+import { motion } from "motion/react";
+import { Folder01Icon, PlayCircleIcon, SparklesIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useAtom } from "jotai";
-import { currentProjectAtom, isEditingAtom, newProjectModalOpenAtom, RecentProject, recentProjectsAtom } from "../../atoms/projects";
-import { Spotlight } from "../ui/spotlight";
-import { BackgroundBeams } from "../ui/background-beams";
-import { cn } from "../../lib/utils";
-import { Plus, FolderOpen } from "lucide-react";
-import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
-import { invoke } from "@tauri-apps/api/core"; // Tauri v2 invoke
-const openProject = () => console.log("Open project");
+import { Badge } from "@/components/base-ui/badge";
+import { Button } from "@/components/base-ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/base-ui/card";
+import { ShimmerButton } from "@/components/watermelon/shimmer-button";
+import { newProjectModalOpenAtom } from "@/atoms/projects";
+import { useProjectActions } from "@/hooks/useProjectActions";
+import { isTauri } from "@/lib/project";
 
-interface Project {
-	id: string;
-	name: string;
-	lastModified: string;
-}
-
-const initialProjects: Project[] = [
+const FEATURES = [
+  {
+    icon: SparklesIcon,
+    title: "Scene first",
+    description: "Each scene is a plain Python file you can diff, review, and version.",
+  },
+  {
+    icon: PlayCircleIcon,
+    title: "Render in place",
+    description: "Manim renders straight from the project folder into media/videos.",
+  },
+  {
+    icon: Folder01Icon,
+    title: "Plain folders",
+    description: "Your project is just scenes/ and assets/ on disk. No database.",
+  },
 ];
 
-const ProjectCard = ({ project, index }: { project: Project; index: number }) => (
-	<motion.div
-		initial={{ opacity: 0, y: 20 }}
-		animate={{ opacity: 1, y: 0 }}
-		transition={{ delay: 0.1 * index, duration: 0.4 }}
-		whileHover={{ scale: 1.02, y: -4 }}
-		className="w-full"
-	>
-		<Paper
-			shadow="sm"
-			p="md"
-			radius="md"
-			className={cn(
-				"border border-transparent cursor-pointer transition-all duration-300",
-				"hover:border-[#74c0fc] hover:shadow-md"  // Uses Mantine primary color as accent
-			)}
-		>
-			<Group position="apart">
-				<div>
-					<Text weight={600} size="md" className="text-[#1a1b1e] dark:text-[#c1c2c5]">
-						{project.name}
-					</Text>
-					<Text size="xs" color="dimmed">
-						Last modified: {project.lastModified}
-					</Text>
-				</div>
-			</Group>
-		</Paper>
-	</motion.div>
-);
+function Home() {
+  const { recents, openProjectPath, pickProject } = useProjectActions();
+  const [, setNewProjectOpen] = useAtom(newProjectModalOpenAtom);
 
-export default function Home() {
-	const [recentProjects, setRecentProjects] = useAtom(recentProjectsAtom);
+  return (
+    <div className="relative min-h-full overflow-y-auto">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/10 to-transparent" />
 
-	const [isEditing, setIsEditing] = useAtom(isEditingAtom);
-	const [currentProject, setCurrentProject] = useAtom(currentProjectAtom);
-	const projects = recentProjects.length > 0 ? recentProjects : initialProjects;
+      <div className="relative mx-auto flex max-w-5xl flex-col gap-12 px-6 py-16">
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-start gap-6"
+        >
+          <Badge variant="secondary" className="gap-2">
+            <span className="size-1.5 rounded-full bg-primary" />
+            Manim Community v0.20
+          </Badge>
 
-	const [modalOpened, setModalOpened] = useAtom(newProjectModalOpenAtom);
+          <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight md:text-6xl">
+            Explain math with{" "}
+            <span className="animate-gradient-xy bg-gradient-to-r from-primary via-fuchsia-500 to-sky-500 bg-clip-text text-transparent">
+              animation
+            </span>
+          </h1>
 
-	const handleCreateProject = async (
-		name: string,
-		template: string,
-		savePath: string
-	) => {
-		try {
-			const projectPath = await invoke<string>("create_project", {
-				projectName: name,
-				template,
-				savePath,
-			});
-			console.log("Project created at:", projectPath);
-			const thisProject: RecentProject = {
-				id: recentProjects.length.toString(),
-				name: name,
-				path: savePath,
+          <p className="max-w-2xl text-lg text-muted-foreground">
+            Write Manim scenes in a real editor, render them to video, and keep
+            every project as a folder you own.
+          </p>
 
-				template: template,
-				lastOpened: Date.now().toString(),
-			}
-			setCurrentProject(thisProject);
-			setRecentProjects(recentProjects.concat(thisProject));
-			setIsEditing(true);
-			// Optionally update your recent projects atom/list
-		} catch (error) {
-			console.error("Creation failed:", error);
-			// Show an error notification (e.g., Mantine notification system)
-		}
-	};
+          <div className="flex flex-wrap items-center gap-3">
+            <ShimmerButton onClick={() => setNewProjectOpen(true)}>
+              <span className="flex items-center gap-2">
+                <HugeiconsIcon icon={SparklesIcon} className="size-4" />
+                New project
+              </span>
+            </ShimmerButton>
+            <Button variant="outline" size="lg" onClick={pickProject}>
+              <HugeiconsIcon icon={Folder01Icon} className="size-4" />
+              Open project
+            </Button>
+          </div>
 
-	return (
-		<>
-			<div className="relative min-h-screen w-full overflow-hidden bg-[#f8f9fa] dark:bg-[#1a1b1e]">
-				<Spotlight className="absolute top-0 left-0 z-0" />
+          {!isTauri() && (
+            <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+              Running in a plain browser: file and render actions need{" "}
+              <code className="font-mono">pnpm tauri dev</code>.
+            </p>
+          )}
+        </motion.section>
 
-				<BackgroundBeams className="absolute inset-0 z-0 opacity-60" />
+        <section className="grid gap-4 md:grid-cols-3">
+          {FEATURES.map((feature, index) => (
+            <motion.div
+              key={feature.title}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 * index }}
+            >
+              <Card className="h-full">
+                <CardHeader>
+                  <HugeiconsIcon
+                    icon={feature.icon}
+                    className="size-5 text-primary"
+                  />
+                  <CardTitle>{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{feature.description}</CardDescription>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </section>
 
-				<Container size="lg" className="relative z-10 flex flex-col items-center justify-center min-h-screen py-20">
-					<motion.div
-						initial={{ opacity: 0, y: 40 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.8, ease: "easeOut" }}
-						className="text-center mb-16"
-					>
-						<Title
-							order={1}
-							className="text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight mb-4"
-						>
-							<span className="bg-gradient-to-r from-[#1c7ed6] via-[#4263eb] to-[#ae3ec9] bg-clip-text text-transparent">
-								Manim Studio
-							</span>
-						</Title>
-
-						<Text size="xl" color="dimmed" className="text-2xl md:text-3xl max-w-2xl mx-auto">
-							Bring your ideas{" "}
-							<span className="relative inline-block">
-								to life.
-								<motion.span
-									className="absolute bottom-0 left-0 h-[3px] w-full bg-gradient-to-r from-[#1c7ed6] to-[#ae3ec9]"
-									initial={{ scaleX: 0 }}
-									animate={{ scaleX: 1 }}
-									transition={{ delay: 0.6, duration: 0.5 }}
-									style={{ originX: 0 }}
-								/>
-							</span>
-						</Text>
-
-						<Group position="center" spacing="lg" mt="xl">
-							<motion.div
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.98 }}
-							>
-								<Button
-									size="lg"
-									radius="md"
-									variant="gradient"
-									gradient={{ from: "blue", to: "cyan" }}
-
-									leftSection={
-										<motion.span
-											initial={{ rotate: 0 }}
-											whileHover={{ rotate: 90, scale: 1.2 }}
-											transition={{ type: "spring", stiffness: 300 }}
-											style={{ display: "inline-flex" }}
-										>
-											<Plus size={20} strokeWidth={2.5} />
-										</motion.span>
-									}
-									className="text-lg px-8 py-3 shadow-lg hover:shadow-xl transition-shadow"
-									onClick={() => setModalOpened(true)}
-								>
-									New Project
-								</Button>
-							</motion.div>
-
-							<motion.div
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.98 }}
-							>
-								<Button
-									size="lg"
-									radius="md"
-
-									leftSection={
-										<motion.span
-											initial={{ rotate: 0, y: 0 }}
-											whileHover={{ rotate: -10, y: -2, scale: 1.15 }}
-											transition={{ type: "spring", stiffness: 400 }}
-											style={{ display: "inline-flex" }}
-										>
-											<FolderOpen size={20} strokeWidth={2.5} />
-										</motion.span>
-									}
-									variant="outline"
-									className="text-lg px-8 py-3 border-2 border-[#74c0fc] text-[#1c7ed6] hover:bg-[#e7f5ff] dark:border-[#4dabf7] dark:text-[#4dabf7] dark:hover:bg-[#0c1428] transition-colors"
-									onClick={openProject}
-								>
-									Open Project
-								</Button>
-							</motion.div>
-						</Group>
-					</motion.div>
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						transition={{ delay: 0.4, duration: 0.6 }}
-						className="w-full max-w-2xl"
-					>
-						<Text size="lg" weight={600} mb="md" className="text-center md:text-left">
-							Recent Projects
-						</Text>
-
-						<Stack spacing="md">
-							<AnimatePresence>
-								{projects.map((project, idx) => (
-									<ProjectCard key={project.id} project={project} index={idx} />
-								))}
-							</AnimatePresence>
-						</Stack>
-
-						{projects.length === 0 && (
-							<Text align="center" color="dimmed" mt="xl">
-								No projects yet. Create one to get started!
-							</Text>
-						)}
-					</motion.div>
-				</Container>
-
-				<NewProjectModal
-					opened={modalOpened}
-					onClose={() => setModalOpened(false)}
-					onCreate={handleCreateProject}
-				/>
-			</div>
-		</>
-	);
+        <section className="flex flex-col gap-4">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            Recent projects
+          </h2>
+          {recents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No projects yet. Create one to generate your first scene.
+            </p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {recents.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => openProjectPath(project.path)}
+                  className="group flex items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/50"
+                >
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{project.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {project.path}
+                    </span>
+                  </span>
+                  <Badge variant="secondary" className="capitalize">
+                    {project.template}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }
+
+export default Home;

@@ -1,20 +1,52 @@
-
-import { atom } from 'jotai'
-import { atomWithStorage } from 'jotai/utils'
+import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 
 export interface RecentProject {
-  id: string
-  name: string
-  path: string
-
-  template: string,
-  lastOpened: string // ISO date
+  id: string;
+  name: string;
+  path: string;
+  template: string;
+  lastOpened: string; // ISO date
 }
 
-export const isEditingAtom = atomWithStorage<boolean>('isEditingState', false)
+export interface ProjectInfo {
+  name: string;
+  template: string;
+  created: string;
+  path: string;
+  scenes: string[];
+}
 
-export const recentProjectsAtom = atomWithStorage<RecentProject[]>('recentProjects', [])
+export type RenderQuality = "low" | "medium" | "high" | "production";
 
-export const currentProjectAtom = atom<RecentProject | null>(null)
+export interface RenderState {
+  status: "idle" | "running" | "ok" | "error";
+  log: string;
+  video: string | null;
+  scene: string | null;
+}
+
+export const isEditingAtom = atomWithStorage<boolean>("isEditingState", false);
+
+export const recentProjectsAtom = atomWithStorage<RecentProject[]>("recentProjects", []);
+
+export const currentProjectAtom = atomWithStorage<ProjectInfo | null>("currentProject", null);
+
+export const activeSceneAtom = atomWithStorage<string | null>("activeScene", null);
+
+export const sceneCodeAtom = atom<Record<string, string>>({});
+
+export const dirtyScenesAtom = atom<Record<string, boolean>>({});
 
 export const newProjectModalOpenAtom = atom<boolean>(false);
+
+export const openProjectModalOpenAtom = atom<boolean>(false);
+
+export const renderQualityAtom = atomWithStorage<RenderQuality>("renderQuality", "low");
+
+export const renderStateAtom = atom<RenderState>({
+  status: "idle",
+  log: "",
+  video: null,
+  scene: null,
+});

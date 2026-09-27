@@ -14,12 +14,6 @@ importers:
       '@hugeicons/react':
         specifier: ^1.1.10
         version: 1.1.10(react@19.2.8)
-      '@mantine/core':
-        specifier: ^9.5.0
-        version: 9.5.1(@mantine/hooks@9.5.1(react@19.2.8))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@mantine/hooks':
-        specifier: ^9.5.0
-        version: 9.5.1(react@19.2.8)
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
@@ -56,9 +50,6 @@ importers:
       cn:
         specifier: ^0.4.0
         version: 0.4.0
-      framer-motion:
-        specifier: ^12.43.0
-        version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       jotai:
         specifier: ^2.20.2
         version: 2.20.2(@babel/core@7.29.7)(@babel/template@7.29.7)(@types/react@19.2.18)(react@19.2.8)
@@ -114,12 +105,6 @@ importers:
       postcss:
         specifier: ^8.5.24
         version: 8.5.26
-      postcss-preset-mantine:
-        specifier: ^1.18.0
-        version: 1.18.0(postcss@8.5.26)
-      postcss-simple-vars:
-        specifier: ^7.0.1
-        version: 7.0.1(postcss@8.5.26)
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
@@ -384,12 +369,6 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
-  '@floating-ui/react@0.27.20':
-    resolution: {integrity: sha512-CMqMy7OaXl9W0eq1Uy7L7i2Y/anPvHmFmESd2CEw0t5YvZhcVCeo4MBevAmswRllX7Y2dEidA4ozGPunLSTQpw==}
-    peerDependencies:
-      react: '>=17.0.0'
-      react-dom: '>=17.0.0'
-
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
@@ -416,18 +395,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@mantine/core@9.5.1':
-    resolution: {integrity: sha512-3olDOYJBfW4kR37Aqdy/+FnYG7iNb5SPzOGeCp9dDxnt65K94sEqETDnXGJptOMO2xLm4KLJ/eBt3IIhJA7Z4Q==}
-    peerDependencies:
-      '@mantine/hooks': 9.5.1
-      react: ^19.2.0
-      react-dom: ^19.2.0
-
-  '@mantine/hooks@9.5.1':
-    resolution: {integrity: sha512-2sK9OdWvrzKBOuWxLfQA5qcAJzxpzqNlKumaP7Uq0i7LDBQeY/sYgNiBWLwtW+iZw6fFXwPf0nI7q5VVpvqnNQ==}
-    peerDependencies:
-      react: ^19.2.0
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -1502,10 +1469,6 @@ packages:
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
-  camelcase-css@2.0.1:
-    resolution: {integrity: sha512-QOSvevhslijgYwRx6Rv7zKdMF8lbRmx+uQGx2+vDc+KI/eBnsy9kit5aj23AgGu3pa4t9AgwbnXWqS+iOY+2aA==}
-    engines: {node: '>= 6'}
-
   caniuse-lite@1.0.30001809:
     resolution: {integrity: sha512-xxWVywk6a6Arlk+hymeycyn/VgqEfLDxupvhH/xiY5SJ/18kmi9o6MiO320DCUzypORHLtvh0I4i04tUhCNHNQ==}
 
@@ -1526,11 +1489,6 @@ packages:
 
   cookie-es@3.1.1:
     resolution: {integrity: sha512-UaXxwISYJPTr9hwQxMFYZ7kNhSXboMXP+Z3TRX6f1/NyaGPfuNUZOWP1pUEb75B2HjfklIYLVRfWiFZJyC6Npg==}
-
-  cssesc@3.0.0:
-    resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
-    engines: {node: '>=4'}
-    hasBin: true
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -1783,39 +1741,6 @@ packages:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
     engines: {node: '>=12'}
 
-  postcss-js@4.1.0:
-    resolution: {integrity: sha512-oIAOTqgIo7q2EOwbhb8UalYePMvYoIeRY2YKntdpFQXNosSu3vLrniGgmH9OKs/qAkfoj5oB3le/7mINW1LCfw==}
-    engines: {node: ^12 || ^14 || >= 16}
-    peerDependencies:
-      postcss: ^8.4.21
-
-  postcss-mixins@12.1.2:
-    resolution: {integrity: sha512-90pSxmZVfbX9e5xCv7tI5RV1mnjdf16y89CJKbf/hD7GyOz1FCxcYMl8ZYA8Hc56dbApTKKmU9HfvgfWdCxlwg==}
-    engines: {node: ^20.0 || ^22.0 || >=24.0}
-    peerDependencies:
-      postcss: ^8.2.14
-
-  postcss-nested@7.0.2:
-    resolution: {integrity: sha512-5osppouFc0VR9/VYzYxO03VaDa3e8F23Kfd6/9qcZTUI8P58GIYlArOET2Wq0ywSl2o2PjELhYOFI4W7l5QHKw==}
-    engines: {node: '>=18.0'}
-    peerDependencies:
-      postcss: ^8.2.14
-
-  postcss-preset-mantine@1.18.0:
-    resolution: {integrity: sha512-sP6/s1oC7cOtBdl4mw/IRKmKvYTuzpRrH/vT6v9enMU/EQEQ31eQnHcWtFghOXLH87AAthjL/Q75rLmin1oZoA==}
-    peerDependencies:
-      postcss: '>=8.0.0'
-
-  postcss-selector-parser@7.1.5:
-    resolution: {integrity: sha512-KvvtD7SrlBP7dlgkBghEE3r84CABm5SmV2aNcG4oCA+qDnJ/tvKonFVvwWAyyWUEwxuNawdfEAZKP9zM3oZ2Uw==}
-    engines: {node: '>=4'}
-
-  postcss-simple-vars@7.0.1:
-    resolution: {integrity: sha512-5GLLXaS8qmzHMOjVxqkk1TZPf1jMqesiI7qLhnlyERalG0sMbHIbJqrcnrpmZdKCLglHnRHoEBB61RtGTsj++A==}
-    engines: {node: '>=14.0'}
-    peerDependencies:
-      postcss: ^8.2.1
-
   postcss-value-parser@4.2.0:
     resolution: {integrity: sha512-1NNCs6uurfkVbeXG4S8JFT9t19m45ICnif8zWLd5oPSZ50QnwMfK+H3jv408d4jw/7Bttv5axS5IiHoLaVNHeQ==}
 
@@ -1857,12 +1782,6 @@ packages:
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
-
-  react-number-format@5.4.5:
-    resolution: {integrity: sha512-y8O2yHHj3w0aE9XO8d2BCcUOOdQTRSVq+WIuMlLVucAm5XNjJAy+BoOJiuQMldVYVOKTMyvVNfnbl2Oqp+YxGw==}
-    peerDependencies:
-      react: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-      react-dom: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react-refresh@0.17.0:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
@@ -1950,13 +1869,6 @@ packages:
     peerDependencies:
       postcss: ^8.3.3
 
-  tabbable@6.5.0:
-    resolution: {integrity: sha512-wieBHXygIm7OyQOu5hQlkk62/WyCFYGlWg7L6/ZCUZwx0o398Zkn4pVmMyfYhfMG8kGrj/Krt8eIk6UKC6VzwA==}
-
-  tagged-tag@1.0.0:
-    resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
-    engines: {node: '>=20'}
-
   tailwind-merge@3.6.0:
     resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
 
@@ -1981,10 +1893,6 @@ packages:
 
   tw-animate-css@1.4.0:
     resolution: {integrity: sha512-7bziOlRqH0hJx80h/3mbicLW7o8qLsH5+RaLR2t+OHM3D0JlWGODQKQ4cxbK7WlvmUxpcj6Kgu6EKqjrGFe3QQ==}
-
-  type-fest@5.8.0:
-    resolution: {integrity: sha512-YGYEVz3Fm5iy/AybuA0oyNFq7H4CgQNfRp/qfe8nurE1kuCeNm3/vfm9X4Mtl+qLyaKJUh5xrFZwogr41SMjYA==}
-    engines: {node: '>=20'}
 
   typescript@5.8.3:
     resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
@@ -2016,9 +1924,6 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
-
-  util-deprecate@1.0.2:
-    resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
   vite@7.3.6:
     resolution: {integrity: sha512-4XP60spRGjSZFf1qYH+dJIkK2znL3zQfl9KkOV9MkkRR/3Dls0dxaBsQPTloEc5BLXWPL9vsOxopxyKoMmDueg==}
@@ -2272,14 +2177,6 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@floating-ui/react@0.27.20(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      '@floating-ui/react-dom': 2.1.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@floating-ui/utils': 0.2.12
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-      tabbable: 6.5.0
-
   '@floating-ui/utils@0.2.12': {}
 
   '@hugeicons/core-free-icons@4.3.5': {}
@@ -2306,23 +2203,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
-
-  '@mantine/core@9.5.1(@mantine/hooks@9.5.1(react@19.2.8))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      '@floating-ui/react': 0.27.20(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@mantine/hooks': 9.5.1(react@19.2.8)
-      clsx: 2.1.1
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-      react-number-format: 5.4.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      react-remove-scroll: 2.7.2(@types/react@19.2.18)(react@19.2.8)
-      type-fest: 5.8.0
-    transitivePeerDependencies:
-      - '@types/react'
-
-  '@mantine/hooks@9.5.1(react@19.2.8)':
-    dependencies:
-      react: 19.2.8
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
@@ -3352,8 +3232,6 @@ snapshots:
       node-releases: 2.0.53
       update-browserslist-db: 1.3.1(browserslist@4.28.8)
 
-  camelcase-css@2.0.1: {}
-
   caniuse-lite@1.0.30001809: {}
 
   class-variance-authority@0.7.1:
@@ -3367,8 +3245,6 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   cookie-es@3.1.1: {}
-
-  cssesc@3.0.0: {}
 
   csstype@3.2.3: {}
 
@@ -3552,39 +3428,6 @@ snapshots:
 
   picomatch@4.0.5: {}
 
-  postcss-js@4.1.0(postcss@8.5.26):
-    dependencies:
-      camelcase-css: 2.0.1
-      postcss: 8.5.26
-
-  postcss-mixins@12.1.2(postcss@8.5.26):
-    dependencies:
-      postcss: 8.5.26
-      postcss-js: 4.1.0(postcss@8.5.26)
-      postcss-simple-vars: 7.0.1(postcss@8.5.26)
-      sugarss: 5.0.1(postcss@8.5.26)
-      tinyglobby: 0.2.17
-
-  postcss-nested@7.0.2(postcss@8.5.26):
-    dependencies:
-      postcss: 8.5.26
-      postcss-selector-parser: 7.1.5
-
-  postcss-preset-mantine@1.18.0(postcss@8.5.26):
-    dependencies:
-      postcss: 8.5.26
-      postcss-mixins: 12.1.2(postcss@8.5.26)
-      postcss-nested: 7.0.2(postcss@8.5.26)
-
-  postcss-selector-parser@7.1.5:
-    dependencies:
-      cssesc: 3.0.0
-      util-deprecate: 1.0.2
-
-  postcss-simple-vars@7.0.1(postcss@8.5.26):
-    dependencies:
-      postcss: 8.5.26
-
   postcss-value-parser@4.2.0: {}
 
   postcss@8.5.26:
@@ -3682,11 +3525,6 @@ snapshots:
 
   react-is@16.13.1: {}
 
-  react-number-format@5.4.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
-    dependencies:
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-
   react-refresh@0.17.0: {}
 
   react-remove-scroll-bar@2.3.8(@types/react@19.2.18)(react@19.2.8):
@@ -3778,10 +3616,7 @@ snapshots:
   sugarss@5.0.1(postcss@8.5.26):
     dependencies:
       postcss: 8.5.26
-
-  tabbable@6.5.0: {}
-
-  tagged-tag@1.0.0: {}
+    optional: true
 
   tailwind-merge@3.6.0: {}
 
@@ -3801,10 +3636,6 @@ snapshots:
   tslib@2.8.1: {}
 
   tw-animate-css@1.4.0: {}
-
-  type-fest@5.8.0:
-    dependencies:
-      tagged-tag: 1.0.0
 
   typescript@5.8.3: {}
 
@@ -3828,8 +3659,6 @@ snapshots:
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.18
-
-  util-deprecate@1.0.2: {}
 
   vite@7.3.6(jiti@2.7.0)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.26)):
     dependencies:

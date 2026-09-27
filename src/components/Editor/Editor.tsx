@@ -1,172 +1,168 @@
+import { useEffect } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { Group, Panel, Separator } from "react-resizable-panels";
+import { Alert02Icon, PlayIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Badge } from "@/components/base-ui/badge";
+import { Button } from "@/components/base-ui/button";
+import { Label } from "@/components/base-ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/base-ui/native-select";
+import { ScrollArea } from "@/components/base-ui/scroll-area";
+import { Separator as Divider } from "@/components/base-ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base-ui/tabs";
+import CodeEditor from "@/components/CodeEditor/CodeEditor";
+import { useProjectActions } from "@/hooks/useProjectActions";
+import { isTauri } from "@/lib/project";
 
-import './Editor.module.css'
-import { useState } from "react";
-import {
-  Tabs,
-  Paper,
-  Text,
-  ActionIcon,
-  Tooltip,
-  ScrollArea,
-  Group,
-} from "@mantine/core";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Eye,
-  Code2,
-  Hand,
-  SlidersHorizontal,
-  Play,
-  Layers,
-} from "lucide-react";
-import CodeEditor from '../CodeEditor';
+const QUALITIES = [
+  { value: "low", label: "Low — 480p15" },
+  { value: "medium", label: "Medium — 720p30" },
+  { value: "high", label: "High — 1080p60" },
+  { value: "production", label: "Production — 1440p60" },
+] as const;
 
-/* ── Placeholder Content Components ── */
-const CanvasPlaceholder = () => (
-  <div className="flex-1 flex items-center justify-center p-4">
-    <div className="text-center space-y-3">
-      <div className="w-24 h-24 mx-auto rounded-full bg-secondary/50 flex items-center justify-center">
-        <Play size={32} className="text-muted-foreground" />
-      </div>
-      <Text size="sm" color="dimmed" className="font-mono">
-        Live Preview
-      </Text>
-      <Text size="xs" color="dimmed">
-        1920 × 1080
-      </Text>
-    </div>
-  </div>
-);
+function Editor() {
+  const {
+    project,
+    activeScene,
+    code,
+    isDirty,
+    quality,
+    setQuality,
+    renderState,
+    updateCode,
+    saveScene,
+    render,
+    reveal,
+  } = useProjectActions();
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveScene();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [saveScene]);
 
-const DragDropCanvasPlaceholder = () => (
-  <div className="flex-1 flex items-center justify-center p-4">
-    <div className="text-center space-y-3">
-      <div className="w-24 h-24 mx-auto rounded-xl border-2 border-dashed border-blue-400/50 bg-blue-500/5 flex items-center justify-center">
-        <Hand size={32} className="text-blue-400/70" />
-      </div>
-      <Text size="sm" color="dimmed" className="font-mono">
-        Drag & Drop Canvas
-      </Text>
-      <Text size="xs" color="dimmed">
-        Drop objects here to position them
-      </Text>
-    </div>
-  </div>
-);
+  if (!project) return null;
 
-/* ── Properties Panel Content ── */
-const PropertiesPanel = () => (
-  <div className="p-3 space-y-4">
-    <Text size="sm" weight={600} className="text-foreground">
-      Inspector
-    </Text>
-    {["Position", "Scale", "Rotation", "Opacity"].map((prop) => (
-      <div key={prop} className="space-y-1">
-        <label className="text-xs text-muted-foreground">{prop}</label>
-        <div className="h-8 bg-secondary/50 border border-border rounded" />
-      </div>
-    ))}
-    <div className="pt-4">
-      <Text size="sm" weight={600} className="text-foreground">
-        Layers
-      </Text>
-      <div className="space-y-1 mt-2">
-        {["Layer 1", "Layer 2"].map((layer) => (
-          <div key={layer} className="flex items-center gap-2 p-1.5 rounded hover:bg-secondary/50 cursor-pointer">
-            <Layers size={14} className="text-muted-foreground" />
-            <span className="text-xs text-foreground">{layer}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
-/* ── Main Editor Component ── */
-export default function Editor() {
-  const [activeTab, setActiveTab] = useState<string | null>("preview");
-  const [showProperties, setShowProperties] = useState(true);
-	const [codeText,setCodeText] = useState<string>("");
   return (
-    <div className="h-full flex flex-col">
-      {/* Top header bar */}
-      <Paper
-        shadow="xs"
-        p="sm"
-        className="flex items-center justify-between bg-background border-b border-border shrink-0"
-      >
-        <Group spacing="xs">
-          <div className="h-3 w-3 rounded-full bg-green-400" />
-          <Text size="sm" weight={500} className="text-foreground">
-            My Amazing Animation
-          </Text>
-        </Group>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-sm">{activeScene}.py</span>
+          {isDirty && (
+            <Badge variant="outline" className="text-[10px]">
+              unsaved
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Save with <kbd className="font-mono">⌘/Ctrl + S</kbd>
+        </p>
+      </div>
 
-        <Group spacing="xs">
-          {/* Toggle Properties panel */}
-          <Tooltip label={showProperties ? "Hide Properties" : "Show Properties"}>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              onClick={() => setShowProperties((p) => !p)}
-            >
-              <SlidersHorizontal size={18} />
-            </ActionIcon>
-          </Tooltip>
-          {/* Placeholder actions */}
-          <div className="h-8 w-8 rounded-md bg-secondary" />
-          <div className="h-8 w-8 rounded-md bg-secondary" />
-        </Group>
-      </Paper>
-
-      {/* Main workspace area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left content (tabs + content) */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Tabs bar */}
-          <Paper className="bg-background border-b border-border px-3 pt-1">
-            <Tabs value={activeTab} onChange={setActiveTab}>
-              <Tabs.List>
-                <Tabs.Tab value="code" leftSection={<Code2 size={14} />}>
-                  Code
-                </Tabs.Tab>
-                <Tabs.Tab value="canvas" leftSection={<Hand size={14} />}>
-                  Drag & Drop
-                </Tabs.Tab>
-
-                <Tabs.Tab value="preview" leftSection={<Eye size={14} />}>
-                  Preview
-                </Tabs.Tab>
-              </Tabs.List>
-            </Tabs>
-          </Paper>
-
-          {/* Tab panels */}
-          <div className="flex-1 bg-background overflow-hidden">
-            {activeTab === "preview" && <CanvasPlaceholder />}
-            {activeTab === "code" && <CodeEditor value={codeText} onChange={setCodeText} />}
-            {activeTab === "canvas" && <DragDropCanvasPlaceholder />}
+      <Group orientation="horizontal" className="min-h-0 flex-1">
+        <Panel defaultSize={55} minSize={30}>
+          <div className="h-full min-h-0">
+            <CodeEditor
+              value={code}
+              onChange={(value) => activeScene && updateCode(activeScene, value)}
+            />
           </div>
+        </Panel>
+
+        <Separator className="w-px shrink-0 bg-border transition-colors hover:bg-primary" />
+
+        <Panel defaultSize={45} minSize={25}>
+          <Tabs defaultValue="preview" className="flex h-full min-h-0 flex-col">
+            <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+              <TabsList>
+                <TabsTrigger value="preview">Preview</TabsTrigger>
+                <TabsTrigger value="console">Console</TabsTrigger>
+              </TabsList>
+              <Button size="sm" onClick={() => render()}>
+                <HugeiconsIcon icon={PlayIcon} className="size-4" />
+                Render
+              </Button>
+            </div>
+
+            <TabsContent value="preview" className="min-h-0 flex-1 p-3">
+              {renderState.video && isTauri() ? (
+                <video
+                  key={renderState.video}
+                  src={convertFileSrc(renderState.video)}
+                  controls
+                  className="aspect-video w-full rounded-md bg-black"
+                />
+              ) : (
+                <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border text-center">
+                  <HugeiconsIcon
+                    icon={renderState.status === "error" ? Alert02Icon : PlayIcon}
+                    className="size-6 text-muted-foreground"
+                  />
+                  <p className="max-w-xs text-sm text-muted-foreground">
+                    {renderState.status === "running"
+                      ? "Rendering the scene…"
+                      : "Render a scene to preview the video here."}
+                  </p>
+                  {renderState.video && (
+                    <Button variant="outline" size="sm" onClick={() => reveal(renderState.video!)}>
+                      Reveal output
+                    </Button>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="console" className="min-h-0 flex-1 p-0">
+              <ScrollArea className="h-full">
+                <pre className="whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed text-muted-foreground">
+                  {renderState.log || "No render output yet."}
+                </pre>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </Panel>
+      </Group>
+
+      <Divider />
+
+      <div className="grid gap-3 px-4 py-3 sm:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="render-quality">Render quality</Label>
+          <NativeSelect
+            id="render-quality"
+            value={quality}
+            onChange={(event) => setQuality(event.target.value as typeof quality)}
+          >
+            {QUALITIES.map((item) => (
+              <NativeSelectOption key={item.value} value={item.value}>
+                {item.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
         </div>
 
-        {/* Properties panel (right) with slide animation */}
-        <AnimatePresence>
-          {showProperties && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 250, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="border-l border-border bg-background overflow-hidden"
-            >
-              <ScrollArea className="h-full">
-                <PropertiesPanel />
-              </ScrollArea>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="grid gap-1.5">
+          <Label>Project folder</Label>
+          <p className="truncate rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground">
+            {project.path}
+          </p>
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label>Output</Label>
+          <p className="truncate rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground">
+            {renderState.video ?? "media/videos/…"}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
+
+export default Editor;
