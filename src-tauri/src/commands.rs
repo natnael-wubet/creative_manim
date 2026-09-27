@@ -301,8 +301,26 @@ pub fn create_scene(project_path: String, scene: String) -> Result<Vec<String>, 
     if file.exists() {
         return Err(format!("Scene already exists: {}", class_name));
     }
-    fs::write(&file, template_code(&class_name)).map_err(|e| e.to_string())?;
+    fs::write(&file, empty_scene_code(&class_name)).map_err(|e| e.to_string())?;
     Ok(list_scenes(Path::new(&project_path)))
+}
+
+/// The body a newly added scene starts with.
+///
+/// A project template is a worked example worth reading, but a scene added
+/// mid session is not: seeding it with the same demo animation made every new
+/// file look like it already held somebody's scene, which is exactly what the
+/// author is about to replace. Start empty instead.
+fn empty_scene_code(class_name: &str) -> String {
+    format!(
+        r#"from manim import *
+
+
+class {class_name}(Scene):
+    def construct(self):
+        self.wait()
+"#
+    )
 }
 
 #[tauri::command]
@@ -1065,6 +1083,23 @@ class Body(Scene):
         fs::remove_dir_all(&root).unwrap();
     }
 
+
+    #[test]
+    fn an_added_scene_starts_empty_rather_than_with_the_demo_animation() {
+        let root = temp_dir("new-scene");
+        let info = create_project("New".into(), "physics".into(), root.to_string_lossy().into_owned()).unwrap();
+        // The project template is a worked example and stays as it is.
+        let starter = fs::read_to_string(Path::new(&info.path).join("scenes").join("Physics.py")).unwrap();
+        assert!(starter.contains("Dot(color=YELLOW)"), "template lost its example");
+
+        create_scene(info.path.clone(), "second".into()).unwrap();
+        let added = fs::read_to_string(Path::new(&info.path).join("scenes").join("Second.py")).unwrap();
+        assert!(added.contains("class Second(Scene):"), "{added}");
+        assert!(!added.contains("0f1115"), "demo animation leaked in: {added}");
+        assert!(!added.contains("fill_opacity=0.5"), "demo animation leaked in: {added}");
+
+        fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn the_combiner_aliases_a_class_that_would_shadow_its_own_names() {

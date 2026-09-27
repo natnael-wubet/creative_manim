@@ -116,8 +116,15 @@ each out as `scenes/<ClassName>.py`.
   piece imports on its own. Anything that lives between two scene classes, including the comment
   block above the second class, is carried by the file that keeps that class.
 - `split_scene` **never overwrites**: an existing `scenes/<ClassName>.py` is reported in
-  `existing` and left alone. It also **never deletes the original**, because the file may hold code
-  the author still wants. The toast says so.
+  `existing` and left alone. The original is **replaced by a combiner** — a `Combined` scene that
+  runs the split pieces in declaration order — so the stem still renders and still exports the
+  classes it used to hold. The text it replaced is kept at `<stem>.py.orig`, because a split can
+  leave a class in a file that already existed, and the original is then the only copy of that
+  version. The toast says all of this.
+- `create_scene` writes an **empty** scene (`self.wait()`), not `template_code`. A project template
+  is a worked example worth reading, but seeding every added scene with the same demo animation made
+  each new file look like it already held somebody's scene, which is what the author is about to
+  replace. `create_project` still uses the templates.
 - The frontend enables the button only when `sceneClassNamesAtom` holds more than one entry, so it
   never advertises a split that would fail. After a split the scene list comes from the backend's
   `scenes` field, not from names the UI guessed.

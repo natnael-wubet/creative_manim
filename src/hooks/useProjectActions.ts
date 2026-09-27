@@ -227,7 +227,8 @@ export function useProjectActions() {
       const parts = [
         `${result.created.length} scene file${result.created.length === 1 ? "" : "s"} created`,
         result.existing.length > 0 ? `${result.existing.length} already existed` : null,
-        `${scene}.py was left in place`,
+        `${scene}.py is now a Combined scene`,
+        "original text kept as " + `${scene}.py.orig`,
       ].filter(Boolean);
       toast.success(`Split ${scene}.py`, { description: parts.join(" · ") });
     } catch (error) {
