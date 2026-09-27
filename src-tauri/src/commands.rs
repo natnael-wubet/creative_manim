@@ -47,6 +47,61 @@ fn sanitize_class(name: &str) -> String {
     out
 }
 
+/// Resolves a scene entry from the scene list to its file.
+///
+/// `sanitize_class` is only for a name the user is inventing in `create_scene`.
+/// The scene list hands back real file stems, and projects that were not made
+/// by this app use stems like `s02_ch1`; running those through `sanitize_class`
+/// rewrites them to `S02_ch1` and the file is never found. So the stem is used
+/// verbatim, and only validated so that nothing can escape `scenes/`.
+fn scene_file(project_path: &str, scene: &str) -> Result<PathBuf, String> {
+    let stem = scene.trim();
+    let valid = !stem.is_empty()
+        && !stem.starts_with('.')
+        && !stem.contains("..")
+        && stem
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-');
+    if !valid {
+        return Err(format!("Invalid scene name: {scene}"));
+    }
+    Ok(Path::new(project_path)
+        .join("scenes")
+        .join(format!("{stem}.py")))
+}
+
+/// The class to hand `manim render` for a scene file.
+///
+/// Scenes this app creates name the class after the file, but a project from
+/// elsewhere can disagree: `scenes/s02_ch1.py` may well declare
+/// `class Scene02Ch1`. Passing the stem to manim then fails to find a scene, so
+/// fall back to whatever the file actually declares.
+fn scene_class_name(file: &Path, stem: &str) -> String {
+    let Ok(source) = fs::read_to_string(file) else {
+        return stem.to_string();
+    };
+    let declared: Vec<&str> = source
+        .lines()
+        .filter_map(|line| {
+            let rest = line.strip_prefix("class ")?;
+            let name = rest.split(['(', ':', ' ']).next()?;
+            if name.is_empty() || !name.starts_with(|c: char| c.is_alphabetic() || c == '_') {
+                return None;
+            }
+            Some(name)
+        })
+        .collect();
+    if declared.iter().any(|name| *name == stem) {
+        return stem.to_string();
+    }
+    declared
+        .iter()
+        .find(|name| name.contains("Scene"))
+        .or_else(|| declared.first())
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| stem.to_string())
+}
+
 fn template_code(class_name: &str) -> String {
     match class_name {
         "Mathematics" => format!(
@@ -213,8 +268,7 @@ pub fn open_project(save_path: String) -> Result<ProjectInfo, String> {
 
 #[tauri::command]
 pub fn read_scene(project_path: String, scene: String) -> Result<String, String> {
-    let class_name = sanitize_class(&scene);
-    let file = Path::new(&project_path).join("scenes").join(format!("{}.py", class_name));
+    let file = scene_file(&project_path, &scene)?;
     if !file.exists() {
         return Err(format!("Scene file not found: {}", file.display()));
     }
@@ -223,13 +277,10 @@ pub fn read_scene(project_path: String, scene: String) -> Result<String, String>
 
 #[tauri::command]
 pub fn save_scene(project_path: String, scene: String, code: String) -> Result<String, String> {
-    let class_name = sanitize_class(&scene);
-    if class_name.is_empty() {
-        return Err("Invalid scene name".into());
+    let file = scene_file(&project_path, &scene)?;
+    if let Some(parent) = file.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let scenes_dir = Path::new(&project_path).join("scenes");
-    fs::create_dir_all(&scenes_dir).map_err(|e| e.to_string())?;
-    let file = scenes_dir.join(format!("{}.py", class_name));
     fs::write(&file, code).map_err(|e| e.to_string())?;
     Ok(file.to_string_lossy().into_owned())
 }
@@ -249,8 +300,7 @@ pub fn create_scene(project_path: String, scene: String) -> Result<Vec<String>, 
 
 #[tauri::command]
 pub fn delete_scene(project_path: String, scene: String) -> Result<Vec<String>, String> {
-    let class_name = sanitize_class(&scene);
-    let file = Path::new(&project_path).join("scenes").join(format!("{}.py", class_name));
+    let file = scene_file(&project_path, &scene)?;
     if file.exists() {
         fs::remove_file(&file).map_err(|e| e.to_string())?;
     }
@@ -322,7 +372,6 @@ pub fn render_scene(
     scene: String,
     quality: String,
 ) -> Result<RenderResult, String> {
-    let class_name = sanitize_class(&scene);
     let flag = match quality.as_str() {
         "medium" => "-qm",
         "high" => "-qh",
@@ -330,14 +379,16 @@ pub fn render_scene(
         _ => "-ql",
     };
 
-    let script = format!("scenes/{}.py", class_name);
-    let script_path = Path::new(&project_path).join(&script);
+    let stem = scene.trim().to_string();
+    let script_path = scene_file(&project_path, &stem)?;
     if !script_path.exists() {
         return Err(format!(
-            "Scene {class_name} has no file at {script}. Available: {}",
+            "Scene {stem} has no file at scenes/{stem}.py. Available: {}",
             list_scenes(Path::new(&project_path)).join(", ")
         ));
     }
+    let class_name = scene_class_name(&script_path, &stem);
+    let script = format!("scenes/{stem}.py");
 
     let output = Command::new("manim")
         .arg("render")
@@ -416,7 +467,9 @@ mod tests {
         assert_eq!(scenes, vec!["Mathematics".to_string(), "Outro".to_string()]);
         assert!(create_scene(info.path.clone(), "outro".into()).is_err());
 
-        assert_eq!(delete_scene(info.path.clone(), "outro".into()).unwrap(), vec!["Mathematics".to_string()]);
+        // Scene commands address a file by the stem the list reports, which is
+        // not always the text that was typed.
+        assert_eq!(delete_scene(info.path.clone(), scenes[1].clone()).unwrap(), vec!["Mathematics".to_string()]);
 
         let reopened = open_project(info.path.clone()).unwrap();
         assert_eq!(reopened.name, "Demo");
@@ -429,6 +482,71 @@ mod tests {
     fn rejects_empty_project_name() {
         let root = temp_dir("invalid");
         assert!(create_project("!!!".into(), "blank".into(), root.to_string_lossy().into_owned()).is_err());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// A project that this app did not create can have scene stems that are not
+    /// PascalCase, such as `s02_ch1`. Those have to round-trip untouched.
+    #[test]
+    fn keeps_lowercase_scene_stems_verbatim() {
+        let root = temp_dir("lowercase");
+        let info = create_project("Lower".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        let scenes = Path::new(&info.path).join("scenes");
+        fs::write(scenes.join("s02_ch1.py"), "class Scene02Ch1(Scene):\n    pass\n").unwrap();
+
+        let listed = open_project(info.path.clone()).unwrap();
+        assert!(listed.scenes.contains(&"s02_ch1".to_string()));
+        let code = read_scene(info.path.clone(), "s02_ch1".into()).unwrap();
+        assert!(code.contains("class Scene02Ch1"));
+
+        // A save must update that file, not fork a `S02_ch1.py` beside it.
+        save_scene(info.path.clone(), "s02_ch1".into(), "# edited\n".into()).unwrap();
+        assert_eq!(read_scene(info.path.clone(), "s02_ch1".into()).unwrap(), "# edited\n");
+        assert!(!scenes.join("S02_ch1.py").exists(), "save created a case-variant file");
+        assert_eq!(fs::read_dir(&scenes).unwrap().count(), 2);
+
+        assert_eq!(delete_scene(info.path.clone(), "s02_ch1".into()).unwrap(), vec!["BlankCanvas".to_string()]);
+        assert!(!scenes.join("s02_ch1.py").exists());
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn scene_names_cannot_escape_the_scenes_directory() {
+        let root = temp_dir("traversal");
+        let info = create_project("Escape".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        for bad in ["../secrets", "..\\secrets", "/etc/passwd", ".hidden", "..", "sub/dir"] {
+            assert!(
+                read_scene(info.path.clone(), bad.into()).is_err(),
+                "expected {bad} to be rejected"
+            );
+            assert!(
+                scene_file(&info.path, bad).is_err(),
+                "expected {bad} to be rejected"
+            );
+        }
+        // A leading `__` is legal, and `__pycache__` never reaches here because
+        // list_scenes only reports `.py` files.
+        assert!(scene_file(&info.path, "__init__").is_ok());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn finds_the_scene_class_declared_in_the_file() {
+        let root = temp_dir("classname");
+        let file = root.join("s02_ch1.py");
+
+        fs::write(&file, "class Helper:\n    pass\n\n\nclass Scene02Ch1(ChapterScene):\n    pass\n").unwrap();
+        assert_eq!(scene_class_name(&file, "s02_ch1"), "Scene02Ch1");
+
+        // The app's own convention, stem equals class, must be preserved.
+        fs::write(&file, "class Mathematics(Scene):\n    pass\n").unwrap();
+        assert_eq!(scene_class_name(&file, "Mathematics"), "Mathematics");
+
+        // No class at all falls back to the stem so manim reports it.
+        fs::write(&file, "x = 1\n").unwrap();
+        assert_eq!(scene_class_name(&file, "Loop"), "Loop");
+
         fs::remove_dir_all(&root).unwrap();
     }
 
@@ -463,9 +581,30 @@ mod tests {
         fs::remove_dir_all(&root).unwrap();
     }
 
+
     fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
         haystack
             .windows(needle.len())
             .position(|window| window == needle)
+    }
+
+    /// `scenes/s02_ch1.py` declaring `class Scene02Ch1` is a normal shape for a
+    /// project made outside this app. manim has to be told the declared class,
+    /// not the file stem.
+    #[test]
+    fn renders_a_scene_whose_class_differs_from_its_stem() {
+        let root = temp_dir("stemclass");
+        let info = create_project("Stem".into(), "blank".into(), root.to_string_lossy().into_owned()).unwrap();
+        fs::write(
+            Path::new(&info.path).join("scenes").join("s02_ch1.py"),
+            "from manim import *\n\n\nclass Scene02Ch1(Scene):\n    def construct(self):\n        self.wait(0.1)\n",
+        )
+        .unwrap();
+
+        let result = render_scene(info.path.clone(), "s02_ch1".into(), "low".into()).unwrap();
+        assert!(result.ok, "manim failed:\n{}", result.output);
+        assert!(result.video.expect("no video").ends_with("Scene02Ch1.mp4"));
+
+        fs::remove_dir_all(&root).unwrap();
     }
 }
